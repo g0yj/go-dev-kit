@@ -1,0 +1,12 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/lms?useUnicode=true&characterEncoding=UTF-8&useSSL=false&autoReconnect=true&connectTimeout=1000&validConnectionTimeout=10&socketTimeout=60000&allowPublicKeyRetrieval=true
+    username: lms
+    password: 1q2w#E$R
+lms:
+  file:
+    host: http://localhost:8080
+    upload-dir: downloads/

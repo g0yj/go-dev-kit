@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: go-dev-kit
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: #
+    password: #
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html # Swagger UI 경로를 강제 지정
+  enable-spring-security: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics,loggers,env,beans,mappings"
+  endpoint:
+    health:
+      show-details: always
+app:
+  file:
+    host: "http://localhost:8080"
+    upload-dir: "C:/Users/k/Downloads/"
+    max-file-size: 10MB
+  coolsms:
+    api:
+      key: "#"
+      secret: "#"
+      number: "#"
+server:
+  servlet:
+    context-path:   # 지정하면 api 호출 시, 기본 값으로 추가
+

@@ -1,0 +1,27 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/lms?useUnicode=true&characterEncoding=UTF-8&useSSL=false&autoReconnect=true&connectTimeout=1000&validConnectionTimeout=10&socketTimeout=60000&allowPublicKeyRetrieval=true
+    username: lms
+    password: 1q2w#E$R
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        use_sql_comments: true
+lms:
+  scheduling:
+    checkSmsWatting: "0 0/1 * * * ?" # 1분 마다
+    checkSmsProccessing: "0 0/1 * * * ?" # 1분 마다
+    reservationNotification: "0 0 12 * * ?" # 매일 12시(정오)
+    updateHolidays: "0 0 6 1 * ?" # 매달 1일 오전 6시
+  file:
+    host: http://localhost:8080
+    upload-dir: downloads/
+
+#encryption:
+#  key-url: https://englishchannel.co.kr/consul/v1/kv/config/application/encryption.key

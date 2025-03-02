@@ -1,0 +1,102 @@
+<configuration>
+
+  <!-- 공통 설정 -->
+  <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" />
+
+  <!-- 로컬 환경 로그 설정 -->
+  <springProfile name="migration">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss} %-5level - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+      <file>logs/migration.log</file>
+      <append>false</append>
+      <encoder>
+        <Pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</Pattern>
+      </encoder>
+    </appender>
+
+    <logger name="com.app.api" level="INFO"/>
+
+    <root level="WARN">
+      <appender-ref ref="STDOUT" />
+      <appender-ref ref="FILE" />
+    </root>
+  </springProfile>
+
+  <!-- 개발 환경 로그 설정 -->
+  <springProfile name="dev">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>${LOG_PATTERN}</pattern>
+      </encoder>
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/server.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>server-%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+      </rollingPolicy>
+      <encoder>
+        <pattern>${LOG_PATTERN}</pattern>
+      </encoder>
+    </appender>
+
+    <logger name="com.app.api" level="DEBUG"/>
+
+    <root level="INFO">
+      <appender-ref ref="STDOUT" />
+    </root>
+  </springProfile>
+
+  <!-- 개발 환경 로그 설정 -->
+  <springProfile name="local">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>${LOG_PATTERN}</pattern>
+      </encoder>
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/server.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>server-%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+      </rollingPolicy>
+      <encoder>
+        <pattern>${LOG_PATTERN}</pattern>
+      </encoder>
+    </appender>
+
+    <logger name="com.app.api" level="DEBUG"/>
+    <logger name="reactor.netty.http.client" level="DEBUG"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+
+    <root level="INFO">
+      <appender-ref ref="STDOUT" />
+      <appender-ref ref="FILE" />
+    </root>
+  </springProfile>
+
+  <!-- 운영 환경 로그 설정 -->
+  <springProfile name="prod">
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>/home/ec/kowoontech/logs/server.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>/home/ec/kowoontech/logs/server-%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+      </rollingPolicy>
+      <encoder>
+        <pattern>${LOG_PATTERN}</pattern>
+      </encoder>
+    </appender>
+
+    <logger name="com.app.api" level="INFO"/>
+
+    <root level="INFO">
+      <appender-ref ref="FILE" />
+    </root>
+  </springProfile>
+
+</configuration>
