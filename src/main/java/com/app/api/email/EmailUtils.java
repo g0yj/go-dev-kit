@@ -1,9 +1,8 @@
 package com.app.api.email;
 
 
-import com.app.api.controller.dto.email.EmailResponse;
-import com.app.api.controller.dto.email.SearchlRequestEmail;
-import com.app.api.utils.Dayutils;
+import com.app.api.test.controller.dto.email.SearchlRequestEmail;
+import com.app.api.utils.DateUtils;
 import jakarta.mail.*;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
@@ -52,8 +51,8 @@ public class EmailUtils {
      */
     public List<Message> gmailFilterMessages(Message[] messages, SearchlRequestEmail request) {
         List<Message> filteredMessages = new ArrayList<>();
-        Date startDate = request.getStartDate() != null ? Dayutils.convertToDate(request.getStartDate()) : null;
-        Date endDate = request.getEndDate() != null ? Dayutils.convertToDate(request.getEndDate()) : null;
+        Date startDate = request.getStartDate() != null ? DateUtils.convertToDate(request.getStartDate()) : null;
+        Date endDate = request.getEndDate() != null ? DateUtils.convertToDate(request.getEndDate()) : null;
         String keyword = request.getSubject() != null ? request.getSubject().toLowerCase() : null;
 
         for (Message message : messages) {
@@ -89,12 +88,12 @@ public class EmailUtils {
         List<SearchTerm> searchTerms = new ArrayList<>();
 
         if (emailInfo.getStartDate() != null) { // 시작일
-            Date startDate = Dayutils.convertToDate(emailInfo.getStartDate());
+            Date startDate = DateUtils.convertToDate(emailInfo.getStartDate());
             searchTerms.add(new ReceivedDateTerm(ComparisonTerm.GE, startDate));
         }
 
         if (emailInfo.getEndDate() != null) { // 종료일
-            Date endDate = Dayutils.convertToDate(emailInfo.getEndDate());
+            Date endDate = DateUtils.convertToDate(emailInfo.getEndDate());
             searchTerms.add(new ReceivedDateTerm(ComparisonTerm.LE, endDate));
         }
         if (emailInfo.getFrom() != null && !emailInfo.getFrom().isEmpty()) {

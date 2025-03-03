@@ -1,13 +1,11 @@
-package com.app.api.controller.dto.email;
+package com.app.api.test.controller.dto.email;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.mail.*;
 import jakarta.mail.internet.MimeBodyPart;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;

@@ -1,7 +1,7 @@
 package com.app.api.email;
 
-import com.app.api.controller.dto.email.EmailResponse;
-import com.app.api.controller.dto.email.SearchlRequestEmail;
+import com.app.api.test.controller.dto.email.EmailResponse;
+import com.app.api.test.controller.dto.email.SearchlRequestEmail;
 import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
@@ -22,7 +22,7 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class EmailReceiverService {
-    private final EmailConfig emailConfig;
+    private final EmailService emailService;
     private final EmailUtils emailUtils;
     /**
      * 📌 이메일 전체 가져오기
@@ -37,7 +37,7 @@ public class EmailReceiverService {
 
         try {
             // 🔹 IMAP 서버 연결
-            store = emailConfig.connectToImap(emailConfig.getUsername());
+            store = emailService.connectToImap(emailService.getUsername());
             if (store == null) {
                 log.error("❌ [IMAP 연결 실패] Store가 null입니다.");
                 return Collections.emptyList();
@@ -52,7 +52,7 @@ public class EmailReceiverService {
             log.debug("📩 [이메일 조회] 받은 편지함 열기 성공!");
 
             Message[] messages;
-            if(emailConfig.getUsername().contains("@gmail")){
+            if(emailService.getUsername().contains("@gmail")){
                 // 🔹 Gmail: 모든 이메일을 가져온 후 Java에서 직접 필터링
                 messages = inbox.getMessages();
                 filteredMessages = emailUtils.gmailFilterMessages(messages, request);//조건 추가/수정 필요

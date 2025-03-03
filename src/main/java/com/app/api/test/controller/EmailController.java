@@ -1,11 +1,10 @@
-package com.app.api.controller;
+package com.app.api.test.controller;
 
-import com.app.api.controller.dto.email.EmailResponse;
-import com.app.api.controller.dto.email.SearchlRequestEmail;
+import com.app.api.test.controller.dto.email.EmailResponse;
+import com.app.api.test.controller.dto.email.SearchlRequestEmail;
 import com.app.api.email.EmailReceiverService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.mail.Message;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
