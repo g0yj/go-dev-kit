@@ -16,7 +16,7 @@ import java.util.Properties;
 @Getter
 @Setter
 @Component
-public class EmailService {
+public class EmailConfig {
 
     @Value("${spring.mail.username}")
     private String username;

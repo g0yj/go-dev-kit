@@ -1,7 +1,7 @@
 package com.app.api.email;
 
 
-import com.app.api.test.controller.dto.email.SearchlRequestEmail;
+import com.app.api.test.controller.dto.email.SearchRequestEmail;
 import com.app.api.utils.DateUtils;
 import jakarta.mail.*;
 import jakarta.mail.internet.AddressException;
@@ -49,7 +49,7 @@ public class EmailUtils {
      * 📌 Gmail에서 날짜 필터링을 위한 추가 메서드(추가/삭제 가능합니다)
      *      error: A4 BAD Could not parse command 해결을 위함
      */
-    public List<Message> gmailFilterMessages(Message[] messages, SearchlRequestEmail request) {
+    public List<Message> gmailFilterMessages(Message[] messages, SearchRequestEmail request) {
         List<Message> filteredMessages = new ArrayList<>();
         Date startDate = request.getStartDate() != null ? DateUtils.convertToDate(request.getStartDate()) : null;
         Date endDate = request.getEndDate() != null ? DateUtils.convertToDate(request.getEndDate()) : null;
@@ -84,7 +84,7 @@ public class EmailUtils {
      * - 특정 발신자 이메일 필터링
      * - 특정 제목 포함 메일 검색
      */
-    public SearchTerm buildSearchTerm(SearchlRequestEmail emailInfo) {
+    public SearchTerm buildSearchTerm(SearchRequestEmail emailInfo) {
         List<SearchTerm> searchTerms = new ArrayList<>();
 
         if (emailInfo.getStartDate() != null) { // 시작일

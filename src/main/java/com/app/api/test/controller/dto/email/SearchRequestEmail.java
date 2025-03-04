@@ -15,7 +15,7 @@ import java.util.Objects;
 @AllArgsConstructor@NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Schema(description = "이메일 요청 DTO (필터링 요청 시 사용)")
-public class SearchlRequestEmail {
+public class SearchRequestEmail {
 
 
     @Schema(description = "수신자 목록", example = "[\"user1@example.com\", \"user2@example.com\"]")

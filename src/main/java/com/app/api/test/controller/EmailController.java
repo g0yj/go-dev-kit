@@ -1,7 +1,7 @@
 package com.app.api.test.controller;
 
-import com.app.api.test.controller.dto.email.EmailResponse;
-import com.app.api.test.controller.dto.email.SearchlRequestEmail;
+import com.app.api.email.dto.EmailResponse;
+import com.app.api.test.controller.dto.email.SearchRequestEmail;
 import com.app.api.email.EmailReceiverService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +29,7 @@ public class EmailController {
      */
     @GetMapping
     @Operation(summary ="필터링 된 이메일 조회")
-    List<EmailResponse> getList(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "핉터링 조건") @RequestBody SearchlRequestEmail email){
+    List<EmailResponse> getList(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "핉터링 조건") @RequestBody SearchRequestEmail email){
         log.debug("✅ [이메일 전체 조회 Cotroller ] email : {} ", email);
         return emailReceiverService.getList(email);
     }
