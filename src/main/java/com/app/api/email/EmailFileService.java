@@ -42,7 +42,8 @@ public class EmailFileService {
 
             // ✅ 첨부파일이 존재하는 경우 (이메일에 직접 포함된 파일)
             if (Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition())) {
-                File savedFile = saveEmailAttachment(part, saveDir);
+                String safeFileName = EmailUtils.getSafeFileName(part); // ✅ MIME 인코딩된 파일명을 디코딩 후 사용
+                File savedFile = saveEmailAttachment(part, saveDir, safeFileName);
                 if (savedFile != null) {
                     saveFiles.add(savedFile);
                 }
@@ -126,4 +127,25 @@ public class EmailFileService {
         return fileName.trim();
     }
 
+
+    /**
+     * 📌 첨부파일을 저장하는 메서드 (디코딩된 파일명 적용)
+     */
+    private File saveEmailAttachment(BodyPart part, String saveDir, String fileName) throws Exception {
+        InputStream inputStream = part.getInputStream();
+        File file = new File(saveDir, fileName);
+
+        try (FileOutputStream outputStream = new FileOutputStream(file)) {
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            log.debug("📂 [첨부파일 저장 완료]: {}", file.getAbsolutePath());
+            return file;
+        } catch (Exception e) {
+            log.error("❌ [첨부파일 저장 실패]: {}", e.getMessage(), e);
+            return null;
+        }
+    }
 }

@@ -5,6 +5,7 @@ import com.app.api.email.dto.EmailResponse;
 import com.app.api.file.FileService;
 import com.app.api.test.controller.dto.email.SearchRequestEmail;
 import jakarta.mail.*;
+import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.search.SearchTerm;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,83 +32,86 @@ public class EmailReceiverService {
 
     /**
      * 📌 특정 기간 내 이메일 조회
+     *   클라이언트 측에서 파일에 대한 정보를 알기 위해서는 변환이 필요. javaMail은 Message타입을 반환하는데 이는 클라이언트쪽에서 확인 불가.
      * @param request 필터링 조건
      * @return EmailResponse 리스트
      */
     public List<EmailResponse> getList(SearchRequestEmail request) {
         log.debug("✅ [이메일 조회 시작] 조건: {}", request);
-        List<Message> filteredMessages = new ArrayList<>();
-        List<EmailResponse> responses = new ArrayList<>(); // javamail을 목록에 출력하기 위해서 변환이 필요
+
+        List<Message> messages = getRawMessages(request);
+        if (messages.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<EmailResponse> responses = new ArrayList<>();
+
+        for (Message message : messages) {
+            try {
+                // ✅ 안전하게 이메일 정보를 추출
+                String subject = EmailUtils.getSafeSubject(message);
+                String from = EmailUtils.getSafeFrom(message);
+                LocalDate receivedDate = EmailUtils.convertToLocalDate(message.getReceivedDate());
+                String body = EmailUtils.extractBody(message);
+                List<EmailAttachment> attachments = EmailAttachment.extractAttachments(message, fileService);
+
+                responses.add(EmailResponse.builder()
+                        .subject(subject)
+                        .from(from)
+                        .receivedDate(receivedDate)
+                        .body(body)
+                        .attachments(attachments)
+                        .build());
+
+            } catch (Exception e) {
+                log.warn("⚠️ [이메일 변환 오류 발생]: {}", e.getMessage());
+            }
+        }
+
+        return responses;
+    }
+
+    public List<Message> getRawMessages(SearchRequestEmail request) {
+        log.debug("✅ [이메일 조회 시작] 조건: {}", request);
         Store store = null;
         Folder inbox = null;
+        List<Message> messagesList = new ArrayList<>();
 
         try {
-            // 🔹 IMAP 서버 연결
             store = emailConfig.connectToImap(emailConfig.getUsername());
             if (store == null) {
                 log.error("❌ [IMAP 연결 실패] Store가 null입니다.");
                 return Collections.emptyList();
             }
-            // 🔹 받은 편지함(INBOX) 가져오기
+
             inbox = store.getFolder("INBOX");
             if (inbox == null) {
-                log.error("❌ [받은 편지함(INBOX) 조회 실패]");
+                log.error("❌ [INBOX 조회 실패]");
                 return Collections.emptyList();
             }
-
             inbox.open(Folder.READ_ONLY);
-            log.debug("📩 [이메일 조회] 받은 편지함 열기 성공!");
+            log.debug("📩 [INBOX 열기 성공]");
 
-            // 🔹 이메일 필터링
             Message[] messages;
-            if(emailConfig.getUsername().contains("@gmail")){
-                //  Gmail: 모든 이메일을 가져온 후 Java에서 직접 필터링
+            if (emailConfig.getUsername().contains("@gmail")) {
                 messages = inbox.getMessages();
-                filteredMessages = emailUtils.gmailFilterMessages(messages, request);//조건 추가/수정 필요
+                messages = emailUtils.gmailFilterMessages(messages, request).toArray(new Message[0]);
             } else {
-                //  네이버 등 기타 IMAP 서버: 기본 `SearchTerm` 적용
-                SearchTerm searchTerm = emailUtils.buildSearchTerm(request); //조건 추가/수정 필요)
+                SearchTerm searchTerm = emailUtils.buildSearchTerm(request);
                 messages = (searchTerm != null) ? inbox.search(searchTerm) : inbox.getMessages();
-                if(messages != null){
-                    Collections.addAll(filteredMessages, messages);
-                }
             }
 
-            if (filteredMessages.isEmpty()){
-                log.warn("⚠️ [이메일 없음] 검색 조건에 맞는 이메일이 없습니다.");
-                return Collections.emptyList();
+            if (messages != null && messages.length > 0) {
+                messagesList.addAll(List.of(messages)); // ✅ Inbox를 닫지 않으므로 Message 직접 사용 가능
             }
-            log.debug("📩 [조회된 이메일 개수]: {}개", filteredMessages.size());
 
-            // 🔹 이메일 정보를 `EmailResponse` 객체로 변환
-            for (Message message : filteredMessages) {
-                try {
-                    // ✅ 이메일 본문 정보 생성
-                    EmailResponse emailResponse = EmailResponse.from(message, fileService);
-
-                    // ✅ 첨부파일 다운로드 및 변환
-                    List<File> savedFiles = emailFileService.downloadAttachment(message);
-                    List<EmailAttachment> attachments = new ArrayList<>();
-                    for (File file : savedFiles) {
-                        String fileUrl = fileService.getUrl(file.getName(), file.getName());
-                        attachments.add(new EmailAttachment(file.getName(), fileUrl, file.length()));
-                    }
-                    // ✅ 응답 객체에 첨부파일 정보 추가
-                    emailResponse.setAttachments(attachments);
-                    responses.add(emailResponse);
-
-                } catch (Exception e) {
-                    log.warn("⚠️ [이메일 변환 오류 발생]: {}", e.getMessage());
-                }
-            }
+            log.debug("📩 [조회된 이메일 개수]: {}개", messagesList.size());
 
         } catch (MessagingException e) {
             log.error("❌ [이메일 조회 중 오류 발생]: {}", e.getMessage(), e);
-        } finally {
-            emailUtils.closeResources(inbox, store);
         }
-
-        return responses;
+        // 🔴 Inbox를 닫지 않음 → Message를 안전하게 유지 가능
+        return messagesList;
     }
 
     /**

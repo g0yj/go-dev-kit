@@ -42,7 +42,7 @@ public class EmailResponse {
     public static EmailResponse from(Message message, FileService fileService) {
         if (message == null) {
             log.warn("⚠️ [이메일 변환 실패] 메시지가 null입니다.");
-            return new EmailResponse();
+            return getDefaultEmailResponse();
         }
 
         if (fileService == null) {
@@ -58,7 +58,7 @@ public class EmailResponse {
                     .from(getSafeFrom(message)) // ✅ 발신자 가져오기 (예외 처리)
                     .receivedDate(convertToLocalDate(message.getReceivedDate())) // ✅ LocalDate 변환
                     .body(extractBody(message)) // ✅ 이메일 본문 추가
-                    .attachments(EmailAttachment.fromMessage(message, fileService)) // ✅ 첨부파일 정보 포함
+                    .attachments(EmailAttachment.extractAttachments(message, fileService)) // ✅ 첨부파일 정보 포함
                     .build();
         } catch (MessagingException | IOException e) {
             log.error("❌ [이메일 변환 오류]: {}", e.getMessage(), e);

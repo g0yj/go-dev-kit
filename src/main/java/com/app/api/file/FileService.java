@@ -129,7 +129,7 @@ public class FileService {
                 return null;
             }
 
-            String sanitizedFileName = sanitizeFileName(fileName);
+            String sanitizedFileName = FileUtils.sanitizeFileName(fileName);
             File file = new File(saveDir + "/" + sanitizedFileName);
 
             try (FileOutputStream fos = new FileOutputStream(file)) {
@@ -144,26 +144,6 @@ public class FileService {
         }
     }
 
-    /**
-     * 📌 파일명에서 불필요한 문자 제거
-     */
-    private String sanitizeFileName(String fileName) {
-        if (fileName == null || fileName.isBlank()) {
-            return "unknown_file";
-        }
-        // OS에서 허용되지 않는 문자 제거
-        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
-
-        // 확장자 유지하면서 100자 이내로 자르기
-        int maxLength = 100;
-        int lastDotIndex = fileName.lastIndexOf(".");
-        String extension = (lastDotIndex > 0) ? fileName.substring(lastDotIndex) : "";
-        if (fileName.length() > maxLength) {
-            fileName = fileName.substring(0, maxLength - extension.length()) + extension;
-        }
-
-        return fileName.trim();
-    }
 
 
     /**
