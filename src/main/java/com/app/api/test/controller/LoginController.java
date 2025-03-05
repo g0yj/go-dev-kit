@@ -17,11 +17,6 @@ public class LoginController {
 
     private final AuthService authService;
 
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request){
-        return ResponseEntity.ok(authService.login(request));
-    }
-
     @GetMapping("/protected")
     public String protectedApi(){
         return "✅ 인증된 사용자만 접근할 수 있습니다!";
