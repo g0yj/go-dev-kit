@@ -2,9 +2,12 @@ package com.app.api.login.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -18,34 +21,61 @@ import java.io.IOException;
  *  Spring Security의 OncePerRequestFilter를 상속하여 한 번만 필터링이 실행되도록 합니다.
  */
 @Component
+@Slf4j
 public class JwtTokenFilter extends OncePerRequestFilter {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private JwtTokenProvider jwtTokenProvider;
 
-    public JwtTokenFilter(JwtTokenProvider jwtTokenProvider) {
+    // ✅ SecurityConfig에서 주입 (순환 참조 방지)
+    public void setJwtTokenProvider(JwtTokenProvider jwtTokenProvider) {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-    //토큰 검증 및 인증 처리
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String token = resolveToken(request);
+    protected void doFilterInternal(HttpServletRequest httpRequest, HttpServletResponse httpResponse, FilterChain filterChain)
+            throws ServletException, IOException {
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            // JWT 토큰이 유효하면 SecurityContext에 인증 정보 설정
-            Authentication authentication = jwtTokenProvider.getAuthentication(token);
+        String accessToken = resolveToken(httpRequest);
+
+        if (accessToken != null && jwtTokenProvider.validateToken(accessToken)) {
+            Authentication authentication = jwtTokenProvider.getAuthentication(accessToken);
             SecurityContextHolder.getContext().setAuthentication(authentication);
+        } else {
+            String refreshToken = resolveRefreshToken(httpRequest);
+            if (refreshToken != null) {
+                try {
+                    String newAccessToken = jwtTokenProvider.refreshAccessToken(refreshToken);
+                    httpResponse.setHeader("Authorization", "Bearer " + newAccessToken);
+                } catch (RuntimeException e) {
+                    log.error("❌ Refresh Token 검증 실패: {}", e.getMessage());
+                    httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    return;
+                }
+            }
         }
 
-        filterChain.doFilter(request, response);  // 필터 체인 진행
+        filterChain.doFilter(httpRequest, httpResponse);
     }
 
-    // Authorization 헤더에서 JWT 토큰 추출
+    // ✅ Authorization 헤더에서 Access Token 추출
     private String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);  // "Bearer " 제거
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
+    // ✅ HTTP 요청에서 Refresh Token 쿠키 추출
+    private String resolveRefreshToken(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (var cookie : request.getCookies()) {
+                if (cookie.getName().equals("refresh_token")) {
+                    return cookie.getValue();
+                }
+            }
         }
         return null;
     }
 }
+

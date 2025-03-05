@@ -1,4 +1,4 @@
-package com.app.api.login.jwt;
+package com.app.api.login.jwt.dto;
 
 import lombok.Getter;
 

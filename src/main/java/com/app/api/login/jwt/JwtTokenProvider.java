@@ -1,15 +1,26 @@
 package com.app.api.login.jwt;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
+import io.jsonwebtoken.SignatureAlgorithm;
 
+import javax.crypto.SecretKey;
+import java.security.Key;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 
@@ -19,62 +30,141 @@ import java.util.List;
 @Component
 @Slf4j
 public class JwtTokenProvider {
-    private final String secretKey  = "6v7aNfE9KtPqXb3yGz5CdMqT8hYwVgLpQrZoUsJmKnMo="; // 비밀 키
+    private final SecretKey secretKey;
+    private final long accessTokenExpiration;
+    private final long refreshTokenExpiration;
 
+    // ✅ application.yml에서 SecretKey & 만료 시간 가져오기
+    public JwtTokenProvider(
+            @Value("${spring.jwt.secret}") String secretKeyBase64,
+            @Value("${spring.jwt.access-token-expiration}") long accessTokenExpiration,
+            @Value("${spring.jwt.refresh-token-expiration}") long refreshTokenExpiration) {
 
-    // JWT 토큰 생성
-    public String createToken(User user) {
+        // 🔹 Base64 디코딩된 SecretKey 설정
+        byte[] decodedKey = Decoders.BASE64.decode(secretKeyBase64);
+        this.secretKey = Keys.hmacShaKeyFor(decodedKey);
+
+        this.accessTokenExpiration = accessTokenExpiration;
+        this.refreshTokenExpiration = refreshTokenExpiration;
+
+        log.info("✅ JWT SecretKey 로드 완료 (길이: {}바이트)", decodedKey.length);
+    }
+
+    // ✅ Access Token 생성
+    public String createAccessToken(User user) {
         return Jwts.builder()
                 .setSubject(user.getUsername())
-                .claim("type", user.getAuthorities().toArray()[0].toString())  // type (권한 정보) - 시큐리티는 role을 일반적으로 사용하는데, 기존에 사용하던 게 있다면 커스터마이징 필요함!
-                .setIssuedAt(new Date())  // 발급 시간
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))  // 만료 시간: 1시간
-                .signWith(SignatureAlgorithm.HS512, secretKey)  // 비밀 키로 서명
+                .claim("type", user.getAuthorities().toArray()[0].toString()) // 사용자 역할
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .signWith(secretKey, SignatureAlgorithm.HS512)
                 .compact();
     }
 
-    // JWT 토큰 유효성 검증
-    public boolean validateToken(String token) {
+    // ✅ Refresh Token 생성
+    public String createRefreshToken(User user) {
+        return Jwts.builder()
+                .setSubject(user.getUsername())
+                .claim("type", user.getAuthorities().toArray()[0].toString()) // 사용자 역할
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .signWith(secretKey, SignatureAlgorithm.HS512)
+                .compact();
+    }
+
+    // ✅ JWT 검증 및 Claims 추출
+    public Claims parseClaims(String token) {
         try {
-            JwtParser jwtParser = Jwts.parser()
+            return Jwts.parser()
                     .setSigningKey(secretKey)
-                    .build(); // 서명 키 설정
-            jwtParser.parseClaimsJws(token);  // 토큰 파싱
-            return true;
-        } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException e) {
-            return false;  // 예외 발생 시 유효하지 않은 토큰으로 처리
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            log.error("❌ JWT 만료: {}", e.getMessage());
+            return e.getClaims(); // 만료된 경우에도 Claims 반환
+        } catch (JwtException e) {
+            log.error("❌ JWT 검증 실패: {}", e.getMessage());
+            throw new RuntimeException("JWT 검증 실패", e);
         }
     }
 
-    // JWT 토큰에서 Authentication 객체 추출
+
+    // 🔹 Access Token 유효성 검사
+    public boolean validateToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return !claims.getExpiration().before(new Date()); // 만료되지 않은 경우 true
+        } catch (JwtException e) {
+            log.error("❌ JWT 검증 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // 🔹 Access Token에서 인증 정보 생성
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);
         String username = claims.getSubject();
         String type = claims.get("type", String.class);
 
-        List<GrantedAuthority> authorities = Arrays.asList(new SimpleGrantedAuthority("ROLE_" + type));
-        User principal = new User(username, "", authorities);  // 사용자 정보로 User 객체 생성
-        return new UsernamePasswordAuthenticationToken(principal, token, authorities); // 인증 객체 생성
+        List<GrantedAuthority> authorities = Arrays.asList(new SimpleGrantedAuthority(type));
+        User principal = new User(username, "", authorities);
+        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 
-    // JWT 토큰에서 Claims (payload) 파싱
-    public Claims parseClaims(String token) {
+    // 🔹 Refresh Token을 이용해 Access Token 갱신
+    public String refreshAccessToken(String refreshToken) {
         try {
-            JwtParser jwtParser = Jwts.parser()
-                    .setSigningKey(secretKey)
-                    .build();
+            Claims claims = parseClaims(refreshToken);  // ✅ 예외 발생 가능
+            log.info("✅ Refresh Token Claims: {}", claims);
 
-            Jws<Claims> claimsJws = jwtParser.parseClaimsJws(token);
-            Claims claims = claimsJws.getBody();
+            if (claims.getExpiration().before(new Date())) {
+                log.warn("❌ Refresh Token이 만료되었습니다.");
+                throw new RuntimeException("Refresh Token이 만료되었습니다.");
+            }
 
-            // ✅ JWT 내부 정보 로깅
-            log.info("🔹 JWT 디코딩 결과: {}", claims);
-            return claims;
+            String username = claims.getSubject();
+            String role = claims.get("type", String.class);
+
+            log.info("✅ Refresh Token 검증 성공! 사용자: {}, 권한: {}", username, role);
+
+            User user = new User(username, "", List.of(new SimpleGrantedAuthority(role)));
+            return createAccessToken(user);
         } catch (ExpiredJwtException e) {
-            throw new RuntimeException("토큰이 만료되었습니다.", e);
+            log.error("❌ Refresh Token 만료: {}", e.getMessage());
+            throw new RuntimeException("Refresh Token 만료", e);
         } catch (JwtException e) {
-            throw new RuntimeException("유효하지 않은 토큰입니다.", e);
+            log.error("❌ Refresh Token 검증 실패: {}", e.getMessage());
+            throw new RuntimeException("Refresh Token 검증 실패", e);
         }
     }
 
+    // 🔹 HTTP 요청에서 Access Token을 가져오는 메서드
+    public String resolveToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
+    // ✅ HTTP 요청에서 Refresh Token을 쿠키에서 가져오는 메서드
+    public String resolveRefreshToken(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("refresh_token".equals(cookie.getName())) {
+                    log.info("✅ Refresh Token 쿠키 확인: {}", cookie.getValue());
+                    return cookie.getValue();
+                }
+            }
+        }
+        log.warn("❌ Refresh Token 쿠키가 존재하지 않습니다.");
+        return null;
+    }
+
+
 }
+
+
+
+

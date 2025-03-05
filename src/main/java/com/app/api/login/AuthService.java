@@ -1,8 +1,8 @@
 package com.app.api.login;
 
 import com.app.api.login.jwt.JwtUtil;
-import com.app.api.login.jwt.LoginRequest;
-import com.app.api.login.jwt.LoginResponse;
+import com.app.api.login.jwt.dto.LoginRequest;
+import com.app.api.login.jwt.dto.LoginResponse;
 import com.app.api.test.entity.UserEntity;
 import com.app.api.test.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
