@@ -5,13 +5,17 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
 @Component
 @Slf4j
@@ -114,6 +118,59 @@ public class JwtTokenProvider {
     // ✅ RefreshToken 만료 시간 반환
     public long getRefreshTokenExpiration() {
         return refreshTokenExpiration;
+    }
+
+    // ✅ AccessToken 검증 메서드 추가
+    public boolean validateAccessToken(String token) {
+        try {
+            Jwts.parser()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token);
+            return true; // 유효한 토큰
+        } catch (ExpiredJwtException e) {
+            log.error("❌ 만료된 Access Token: {}", e.getMessage());
+        } catch (MalformedJwtException e) {
+            log.error("❌ 손상된 Access Token: {}", e.getMessage());
+        } catch (SignatureException e) {
+            log.error("❌ 서명 불일치 Access Token: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("❌ 유효하지 않은 Access Token: {}", e.getMessage());
+        }
+        return false; // 검증 실패
+    }
+
+    // ✅ AccessToken에서도 username 추출 가능하도록 개선
+    public String getUsernameFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getSubject();
+        } catch (Exception e) {
+            log.error("❌ JWT에서 사용자 이름 추출 실패: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    // ✅ JWT 토큰에서 권한을 추출하는 메서드 개선
+    public List<GrantedAuthority> getAuthoritiesFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        // "ROLE_" Prefix 적용하여 Spring Security 권한 구조와 일관성 유지
+        String role = claims.get("role", String.class);
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
+    }
+
+    // ✅ AccessToken 만료 시간 반환 메서드 추가
+    public long getAccessTokenExpiration() {
+        return accessTokenExpiration;
     }
 
 }
