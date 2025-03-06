@@ -1,5 +1,7 @@
 package com.app.api.login;
 
+import com.app.api.login.jwt.dto.JwtTokenRequest;
+import com.app.api.login.jwt.dto.JwtTokenResponse;
 import com.app.api.login.session.dto.SessionRequest;
 import com.app.api.login.session.dto.SessionResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,10 +15,12 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
 
     @PostMapping("/session/login")
     public ResponseEntity<SessionResponse> sessionLogin(@RequestBody SessionRequest request, HttpServletRequest httpRequest) {
@@ -81,6 +85,28 @@ public class AuthController {
         return ResponseEntity.ok("로그아웃 성공!");
     }
 
+    @PostMapping("/jwt/login")
+    public ResponseEntity<JwtTokenResponse> jwtLogin(@RequestBody JwtTokenRequest jwtRequest) {
+        return ResponseEntity.ok(authService.jwtLogin(jwtRequest));
+    }
+
+    @PostMapping("/jwt/logout")
+    public ResponseEntity<String> jwtLogout(@RequestHeader("Authorization") String authHeader) {
+        log.debug("🚪 JWT 로그아웃 요청 - Authorization Header: {}", authHeader);
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.error("❌ 잘못된 Authorization 헤더");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 Authorization 헤더");
+        }
+
+        // ✅ "Bearer " 이후의 값이 Refresh Token이므로 추출
+        String refreshToken = authHeader.substring(7).trim();
+        log.debug("🛠 추출된 Refresh Token: {}", refreshToken);
+
+        authService.jwtLogout(refreshToken);
+
+        return ResponseEntity.ok("로그아웃 성공");
+    }
 
 }
 
