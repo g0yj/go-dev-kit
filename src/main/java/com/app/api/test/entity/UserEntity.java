@@ -25,4 +25,14 @@ public class UserEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserType type; // 사용자 역할 추가
+
+    /**
+     * 회원가입 시 사용할 생성자 (로그인/로그아웃 테스트를 위해 추가)
+     */
+    public UserEntity(String username, String password, UserType type) {
+        this.username = username;
+        this.password = password;
+        this.type = type;
+    }
+
 }
