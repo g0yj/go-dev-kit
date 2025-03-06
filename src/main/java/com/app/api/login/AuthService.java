@@ -1,6 +1,7 @@
 package com.app.api.login;
 
 
+import com.app.api.login.session.SessionSecurityService;
 import com.app.api.login.session.UserSessionEntity;
 import com.app.api.login.session.UserSessionRepository;
 import com.app.api.login.session.dto.SessionRequest;
@@ -12,6 +13,10 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,8 +28,12 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
+    private final AuthenticationManager authenticationManager;
+
     private final UserRepository userRepository;
     private final UserSessionRepository userSessionRepository;
+    private final SessionSecurityService sessionSecurityService; // 세션기반로그인(시큐리티사용)
+
 
     /**
      *1️⃣ Spring Security를 사용하지 않는 경우
@@ -99,6 +108,74 @@ public class AuthService {
             });
 
             session.invalidate();
+        }
+    }
+
+    /**
+     *Spring Security를 사용하는 경우
+     * (Spring Security 적용)
+     *
+     * 🔹 특징
+     * Spring Security에서 자동으로 세션을 관리해줌
+     * 로그인 시 AuthenticationManager를 통해 인증 수행
+     * 인증이 성공하면 Spring Security의 SecurityContextHolder에 정보 저장
+     * 로그인 후 자동으로 JSESSIONID를 쿠키로 발급
+     * @PreAuthorize, @RolesAllowed 등의 권한 기반 접근 제어 가능
+     * CSRF, CORS, 인증 필터 등 보안 기능 추가 지원
+     * 🔹 로그인 흐름
+     * 클라이언트가 /login 요청 (ID/PW 전송)
+     * Spring Security의 UsernamePasswordAuthenticationFilter가 요청을 가로챔
+     * AuthenticationManager가 UserDetailsService를 사용해 사용자 인증
+     * 인증 성공 시 SecurityContextHolder에 저장
+     * 자동으로 세션을 생성하고 JSESSIONID 쿠키를 발급
+     * 사용자는 이후 JSESSIONID 쿠키로 인증된 요청을 보냄
+     * 로그아웃 시 SecurityContextLogoutHandler를 통해 자동 처리됨
+     */
+    public boolean sessionSecurityLogin(HttpServletRequest request, SessionRequest sessionRequest) {
+        log.debug("🔹 Session Security 로그인 요청 - username: {}", sessionRequest.getUsername());
+
+        try {
+            // 1️⃣ UsernamePasswordAuthenticationToken 생성
+            UsernamePasswordAuthenticationToken authenticationToken =
+                    new UsernamePasswordAuthenticationToken(sessionRequest.getUsername(), sessionRequest.getPassword());
+
+            // 2️⃣ 인증 수행
+            Authentication authentication = authenticationManager.authenticate(authenticationToken);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            // 3️⃣ 기존 세션 제거 후 새로운 세션 생성
+            HttpSession oldSession = request.getSession(false);
+            if (oldSession != null) {
+                log.debug("🔄 기존 세션 삭제 - sessionId: {}", oldSession.getId());
+                oldSession.invalidate();
+            }
+
+            HttpSession newSession = request.getSession(true);
+            newSession.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+            newSession.setAttribute("username", sessionRequest.getUsername());
+
+            log.info("✅ 로그인 성공 - username: {}, sessionId: {}", sessionRequest.getUsername(), newSession.getId());
+            return true;
+
+        } catch (Exception e) {
+            log.error("❌ 로그인 실패 - username: {}, 이유: {}", sessionRequest.getUsername(), e.getMessage());
+            return false;
+        }
+    }
+
+    public void sessionSecurityLogout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            String username = (String) session.getAttribute("username");
+            log.info("🔹 Session Security 로그아웃 요청 - username: {}", username);
+
+            session.invalidate(); // ✅ 세션 무효화
+            SecurityContextHolder.clearContext(); // ✅ SecurityContext 클리어
+
+            log.info("✅ 로그아웃 성공 - username: {}", username);
+        } else {
+            log.warn("⚠️ 로그아웃 요청했지만 세션이 존재하지 않음");
         }
     }
 

@@ -47,6 +47,41 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("이미 로그아웃된 상태입니다.");
         }
     }
+
+    @PostMapping("/session/security/login")
+    public ResponseEntity<String> sessionSecurityLogin( HttpServletRequest httpRequest, @RequestBody SessionRequest request) {
+        log.debug(" 로그인 요청 - username: {}", request.getUsername());
+
+        boolean isAuthenticated = authService.sessionSecurityLogin(httpRequest, request);
+
+        if (isAuthenticated) {
+            return ResponseEntity.ok("로그인 성공!");
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인 실패: 잘못된 인증 정보");
+        }
+
+    }
+
+    @GetMapping("/session/security/status")
+    public ResponseEntity<String> getSessionStatus(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+
+        if (session == null || session.getAttribute("username") == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("❌ 로그인된 세션이 없습니다.");
+        }
+
+        String username = (String) session.getAttribute("username");
+        return ResponseEntity.ok("✅ 로그인된 사용자: " + username);
+    }
+
+
+    @PostMapping("/session/security/logout")
+    public ResponseEntity<String> sessionSecurityLogout(HttpServletRequest request) {
+        authService.sessionSecurityLogout(request);
+        return ResponseEntity.ok("로그아웃 성공!");
+    }
+
+
 }
 
 
