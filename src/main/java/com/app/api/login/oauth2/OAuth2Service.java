@@ -1,5 +1,6 @@
 package com.app.api.login.oauth2;
 
+import com.app.api.login.jwt.JwtTokenProvider;
 import com.app.api.login.oauth2.dto.OAuth2UserInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +21,7 @@ public class OAuth2Service {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final OAuth2Properties oAuth2Properties;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * ✅ 카카오 로그인 URL 생성
@@ -30,7 +32,8 @@ public class OAuth2Service {
         String kakaoAuthUrl = "https://kauth.kakao.com/oauth/authorize" +
                 "?client_id=" + kakaoConfig.getClientId() +
                 "&redirect_uri=" + kakaoConfig.getRedirectUri() +
-                "&response_type=code";
+                "&response_type=code" +
+                "&prompt=login";  // ✅ 강제 로그인 옵션 추가
 
         log.info("🔗 생성된 카카오 로그인 URL: {}", kakaoAuthUrl);
         return kakaoAuthUrl;
@@ -84,5 +87,34 @@ public class OAuth2Service {
             log.error("❌ 카카오 사용자 정보 요청 실패: 응답이 없음");
             throw new RuntimeException("카카오 사용자 정보 요청 실패");
         }
+    }
+    /**
+     * ✅ JWT 생성 및 반환
+     */
+    public Map<String, String> generateTokens(OAuth2UserInfo userInfo) {
+        log.info("🔑 JWT 생성 - 사용자: {}", userInfo.getEmail());
+
+        // ✅ JWT AccessToken & RefreshToken 생성
+        String accessToken = jwtTokenProvider.generateAccessToken(userInfo.getEmail(), "USER");
+        String refreshToken = jwtTokenProvider.generateRefreshToken(userInfo.getEmail());
+
+        // ✅ 토큰을 Map 형태로 반환
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", accessToken);
+        tokens.put("refreshToken", refreshToken);
+        return tokens;
+    }
+
+    /**
+     * ✅ 리프레시 토큰을 통해 새로운 AccessToken 생성
+     */
+    public String refreshAccessToken(String refreshToken) {
+        log.info("🔑 리프레시 토큰을 통해 새로운 AccessToken 생성");
+
+        // ✅ 리프레시 토큰 검증 및 이메일 추출 (여기서는 간단히 `jwtTokenProvider`가 검증)
+        String email = jwtTokenProvider.validateRefreshToken(refreshToken);
+
+        // ✅ 이메일을 통해 새로운 AccessToken 발급
+        return jwtTokenProvider.generateAccessToken(email, "USER");
     }
 }

@@ -19,6 +19,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 @Controller
 @Slf4j
@@ -145,6 +148,8 @@ public class AuthController {
 
     /**
      * ✅ 카카오 로그인 후, 인가 코드를 받아 처리 (oauth2는 보통 세션 기반 로그인임)
+     * ✅ 시큐리티를 사용하지 않고 로그인 하는 경우 로그인 페이지를 가져오는 건 kakaoCallback() 임
+     *    -> Spring Security가 활성화된 경우에는 자동으로 처리되지만, 현재 Security 없이 직접 처리해야 함.
      */
     @GetMapping("/oauth2/kakao/callback")
     public String kakaoCallback(@RequestParam("code") String code , HttpServletRequest request) {
@@ -233,11 +238,41 @@ public class AuthController {
         return "admin/main";
     }
 
+    /**
+     * ✅ JWT 기반 로그인 (토큰 발급)
+     */
+    @PostMapping("/oauth2/kakao/jwt/login")
+    public ResponseEntity<Map<String, String>> login(@RequestBody OAuth2UserInfo userInfo, HttpServletResponse response) {
+        log.info("🔐 로그인 요청 - 사용자: {}", userInfo.getEmail());
+
+        // ✅ 서비스에서 JWT 생성 (AuthService 사용)
+        Map<String, String> tokens = oAuth2Service.generateTokens(userInfo);
+
+        // ✅ 응답 헤더에 JWT 추가
+        response.setHeader("Authorization", "Bearer " + tokens.get("accessToken"));
+
+        return ResponseEntity.ok(tokens);
+    }
+
+    /**
+     * ✅ 리프레시 토큰을 사용해 새로운 액세스 토큰 발급
+     */
+    @PostMapping("/oauth2/kakao/jwt/refresh/login")
+    public ResponseEntity<Map<String, String>> refresh(@RequestBody Map<String, String> refreshTokenMap) {
+        String refreshToken = refreshTokenMap.get("refreshToken");
+
+        log.info("🔑 리프레시 토큰으로 액세스 토큰 갱신 - 토큰: {}", refreshToken);
+
+        // ✅ 리프레시 토큰을 통해 새로운 액세스 토큰 발급
+        String newAccessToken = oAuth2Service.refreshAccessToken(refreshToken);
+
+        // ✅ 새로운 액세스 토큰 반환
+        Map<String, String> responseMap = new HashMap<>();
+        responseMap.put("accessToken", newAccessToken);
+
+        return ResponseEntity.ok(responseMap);
+    }
+
 }
 
 
-/**
- *  시큐리티를 사용하지 않고 로그인 하는 경우 로그인 페이지를 가져오는 건 kakaoCallback() 임
- *  -> Spring Security가 활성화된 경우에는 자동으로 처리되지만, 현재 Security 없이 직접 처리해야 함.
- *
- */
