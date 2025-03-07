@@ -15,6 +15,7 @@ public class OAuth2Properties {
 
     private OAuth2Client kakao;  // ✅ 기존 Map<String, OAuth2Client>에서 단일 객체로 변경
     private OAuth2Client naver;
+    private OAuth2Client google;
 
     @Getter
     @Setter
