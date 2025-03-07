@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  *  인증 및 로그인 관리
@@ -165,7 +166,14 @@ public class AuthService {
             Authentication authentication = authenticationManager.authenticate(authenticationToken);
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // 3️⃣ 기존 세션 제거 후 새로운 세션 생성
+            // 3️⃣ 기존 로그인 상태 확인 (동시 로그인 차단)
+            Optional<UserSessionEntity> existingSession = userSessionRepository.findByUsername(sessionRequest.getUsername());
+            if (existingSession.isPresent()) {
+                log.warn("🔄 기존 로그인 감지 - 기존 세션 삭제 (동시 로그인 방지) - username: {}", sessionRequest.getUsername());
+                userSessionRepository.deleteByUsername(sessionRequest.getUsername()); // 기존 세션 삭제
+            }
+
+            // 4️⃣ 새로운 세션 생성 및 저장
             HttpSession oldSession = request.getSession(false);
             if (oldSession != null) {
                 log.debug("🔄 기존 세션 삭제 - sessionId: {}", oldSession.getId());
@@ -175,6 +183,15 @@ public class AuthService {
             HttpSession newSession = request.getSession(true);
             newSession.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
             newSession.setAttribute("username", sessionRequest.getUsername());
+
+            // 5️⃣ 로그인 상태 DB 저장
+            UserSessionEntity userSession = UserSessionEntity.builder()
+                    .username(sessionRequest.getUsername())
+                    .sessionId(newSession.getId())
+                    .createdAt(LocalDateTime.now())
+                    .lastAccessed(LocalDateTime.now())
+                    .build();
+            userSessionRepository.save(userSession);
 
             log.info("✅ 로그인 성공 - username: {}, sessionId: {}", sessionRequest.getUsername(), newSession.getId());
             return true;
@@ -195,7 +212,9 @@ public class AuthService {
             session.invalidate(); // ✅ 세션 무효화
             SecurityContextHolder.clearContext(); // ✅ SecurityContext 클리어
 
-            log.info("✅ 로그아웃 성공 - username: {}", username);
+            // ✅ DB에서 로그인 정보 삭제
+            userSessionRepository.deleteByUsername(username);
+            log.info("✅ 로그아웃 성공 - username: {} (DB 세션 정보 삭제)", username);
         } else {
             log.warn("⚠️ 로그아웃 요청했지만 세션이 존재하지 않음");
         }
@@ -300,27 +319,6 @@ public class AuthService {
     public void jwtSecurityLogout() {
         SecurityContextHolder.clearContext();
         log.info("✅ JWT Security 로그아웃 성공");
-    }
-
-    // ============================== ✅ [5] OAuth2 로그인 (Spring Security 미사용) ==============================
-    public String oauth2Login() {
-        return "OAuth2 로그인 (미사용)";
-    }
-
-    // ✅ OAuth2 로그아웃 (Spring Security 미사용)
-    public void oauth2Logout() {
-        log.info("✅ OAuth2 로그아웃 성공");
-    }
-
-    // ============================== ✅ [6] OAuth2 로그인 (Spring Security 사용) ==============================
-    public String oauth2SecurityLogin() {
-        return "OAuth2 로그인 (Spring Security 사용)";
-    }
-
-    // ✅ OAuth2 로그아웃 (Spring Security 사용)
-    public void oauth2SecurityLogout() {
-        SecurityContextHolder.clearContext();
-        log.info("✅ OAuth2 Security 로그아웃 성공");
     }
 
 }

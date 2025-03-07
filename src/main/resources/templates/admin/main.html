@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!-- loginType 값을 서버에서 렌더링하도록 수정 -->
+    <meta name="loginType" th:content="${loginType}">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+        .top-header {
+            width: 100%;
+            background: black;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        .top-header-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .top-header-buttons a {
+            color: white;
+            text-decoration: none;
+            margin-left: 15px;
+            padding: 5px 10px;
+            border: 1px solid white;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .top-header-buttons a:hover {
+            background: white;
+            color: black;
+        }
+        .sidebar {
+            width: 120px;
+            background: #f0f0f0;
+            color: black;
+            padding-top: 70px;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 500;
+        }
+        .sidebar a {
+            color: black;
+            text-decoration: none;
+            padding: 12px;
+            display: block;
+        }
+        .sidebar a:hover {
+            background: #ddd;
+        }
+        .submenu {
+            display: none;
+            background: #e0e0e0;
+            padding-left: 10px;
+        }
+        .submenu a {
+            padding: 10px;
+            font-size: 14px;
+        }
+        .content {
+            margin-top: 60px;
+            margin-left: 140px;
+            padding: 20px;
+            flex-grow: 1;
+            width: calc(100% - 140px);
+        }
+    </style>
+    <script>
+
+        function toggleSubmenu(id) {
+            var submenu = document.getElementById(id);
+            submenu.style.display = (submenu.style.display === "block") ? "none" : "block";
+        }
+
+function logout() {
+    console.log('로그아웃 메서드 실행 ');
+
+    const metaTag = document.querySelector('meta[name="loginType"]');
+    console.log('metaTag : ', metaTag);
+
+    if (metaTag) {
+        const loginType = metaTag.getAttribute('content'); // content에서 로그인 타입 가져오기
+        console.log('loginType : ', loginType);
+
+        let logoutUrl = '/logout'; // 기본 로그아웃 URL (세션 기반 로그인)
+
+        // loginType에 따른 로그아웃 처리
+        if (loginType === 'KAKAO') {
+            console.log("카카오진입");
+            logoutUrl = '/oauth2/kakao/logout'; // 카카오 로그아웃 URL로 변경
+        } else if (loginType === 'NAVER') {
+            logoutUrl = '/oauth2/naver/logout'; // 네이버 로그아웃 URL로 변경
+        }
+
+        // CSRF 토큰을 가져올 수 있는지 확인
+        const csrfToken = document.querySelector('meta[name="_csrf"]');
+        if (csrfToken) {
+            console.log('CSRF 토큰 : ', csrfToken.getAttribute('content'));
+        } else {
+            console.error('CSRF 토큰을 찾을 수 없습니다.');
+        }
+
+        // 로그아웃을 위한 POST 요청
+        fetch(logoutUrl, {
+            method: 'POST', // POST 메소드 사용
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : '' // CSRF 토큰이 없으면 빈 문자열로 처리
+            },
+            body: JSON.stringify({}) // 로그아웃에 필요한 데이터가 없다면 빈 객체 전달
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '/login'; // 로그인 페이지로 리다이렉트
+            } else {
+                alert('로그아웃에 실패했습니다.');
+            }
+        })
+        .catch(error => {
+            console.error('로그아웃 오류:', error);
+            alert('로그아웃 중 오류가 발생했습니다.');
+        });
+    } else {
+        console.error('loginType meta 태그를 찾을 수 없습니다.');
+    }
+}
+    </script>
+
+</head>
+<body>
+<!-- 상단 헤더 -->
+<div class="top-header">
+    <div class="top-header-title">Admin Dashboard</div>
+    <div class="top-header-buttons">
+        <a href="/profile">내 정보</a>
+        <a href="javascript:void(0);" onclick="logout()" class="btn btn-danger">로그아웃</a>
+    </div>
+</div>
+
+<!-- 좌측 사이드바 -->
+<div class="sidebar">
+    <a href="#" onclick="toggleSubmenu('home-submenu')">홈 ▾</a>
+    <div id="home-submenu" class="submenu">
+        <a href="/admin/overview">개요</a>
+        <a href="/admin/reports">리포트</a>
+        <a href="/admin/analytics">분석</a>
+    </div>
+    <a href="#" onclick="toggleSubmenu('users-submenu')">사용자 관리 ▾</a>
+    <div id="users-submenu" class="submenu">
+        <a href="/admin/users/list">사용자 목록</a>
+        <a href="/admin/users/roles">권한 관리</a>
+    </div>
+    <a href="/admin/settings">설정</a>
+</div>
+
+<!-- 메인 컨텐츠 -->
+<div class="content">
+    <h1>관리자 페이지</h1>
+    <p>관리자 권한으로 사이트를 관리할 수 있습니다.</p>
+</div>
+</body>
+</html>

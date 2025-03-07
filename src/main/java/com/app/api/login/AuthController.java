@@ -2,27 +2,43 @@ package com.app.api.login;
 
 import com.app.api.login.jwt.dto.JwtTokenRequest;
 import com.app.api.login.jwt.dto.JwtTokenResponse;
+import com.app.api.login.oauth2.OAuth2Service;
+import com.app.api.login.oauth2.dto.OAuth2UserInfo;
 import com.app.api.login.session.dto.SessionRequest;
 import com.app.api.login.session.dto.SessionResponse;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
 
 
-@RestController
+@Controller
 @Slf4j
 public class AuthController {
 
     private final AuthService authService;
-    public AuthController(AuthService authService) {
+    private final OAuth2Service oAuth2Service;
+    public AuthController(AuthService authService, OAuth2Service oAuth2Service) {
         this.authService = authService;
+        this.oAuth2Service = oAuth2Service;
     }
 
+    @GetMapping("/login")
+    public String main(){
+        log.debug("프로젝트 스타트");
+        return "index";
+
+    }
     @PostMapping("/session/login")
+    @ResponseBody
     public ResponseEntity<SessionResponse> sessionLogin(@RequestBody SessionRequest request, HttpServletRequest httpRequest) {
         log.debug("Session 로그인 요청 - username: {}, type: {}", request.getUsername(), request.getType());
 
@@ -36,6 +52,7 @@ public class AuthController {
         }
     }
     // ✅ 세션 로그아웃
+    @ResponseBody
     @PostMapping("/session/logout")
     public ResponseEntity<String> sessionLogout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
@@ -53,6 +70,7 @@ public class AuthController {
     }
 
     @PostMapping("/session/security/login")
+    @ResponseBody
     public ResponseEntity<String> sessionSecurityLogin( HttpServletRequest httpRequest, @RequestBody SessionRequest request) {
         log.debug(" 로그인 요청 - username: {}", request.getUsername());
 
@@ -67,6 +85,7 @@ public class AuthController {
     }
 
     @GetMapping("/session/security/status")
+    @ResponseBody
     public ResponseEntity<String> getSessionStatus(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
 
@@ -80,17 +99,20 @@ public class AuthController {
 
 
     @PostMapping("/session/security/logout")
+    @ResponseBody
     public ResponseEntity<String> sessionSecurityLogout(HttpServletRequest request) {
         authService.sessionSecurityLogout(request);
         return ResponseEntity.ok("로그아웃 성공!");
     }
 
     @PostMapping("/jwt/login")
+    @ResponseBody
     public ResponseEntity<JwtTokenResponse> jwtLogin(@RequestBody JwtTokenRequest jwtRequest) {
         return ResponseEntity.ok(authService.jwtLogin(jwtRequest));
     }
 
     @PostMapping("/jwt/logout")
+    @ResponseBody
     public ResponseEntity<String> jwtLogout(@RequestHeader("Authorization") String authHeader) {
         log.debug("🚪 JWT 로그아웃 요청 - Authorization Header: {}", authHeader);
 
@@ -108,49 +130,114 @@ public class AuthController {
         return ResponseEntity.ok("로그아웃 성공");
     }
 
+    /**
+     * ✅ 카카오 로그인 페이지로 이동
+     */
+    @GetMapping("/oauth2/kakao/login")
+    public ResponseEntity<Void> redirectToKakaoLogin() {
+        String kakaoLoginUrl = oAuth2Service.getKakaoLoginUrl();
+        log.info("🔗 카카오 로그인 페이지로 리다이렉트: {}", kakaoLoginUrl);
+
+        return ResponseEntity.status(HttpStatus.FOUND) // 302 Redirect
+                .header(HttpHeaders.LOCATION, kakaoLoginUrl)
+                .build();
+    }
+
+    /**
+     * ✅ 카카오 로그인 후, 인가 코드를 받아 처리 (oauth2는 보통 세션 기반 로그인임)
+     */
+    @GetMapping("/oauth2/kakao/callback")
+    public String kakaoCallback(@RequestParam("code") String code , HttpServletRequest request) {
+        log.info("📥 카카오 OAuth2 로그인 성공 - 인가 코드: {}", code);
+
+        // 1️⃣ Access Token 요청
+        String accessToken = oAuth2Service.getKakaoAccessToken(code);
+        log.info("🔑 발급된 카카오 Access Token: {}", accessToken);
+
+        // 2️⃣ 사용자 정보 요청
+        OAuth2UserInfo userInfo = oAuth2Service.getKakaoUserInfo(accessToken);
+        log.info("✅ 카카오 사용자 정보: {}", userInfo);
+
+        // 3. 세션에 로그인 타입 저장
+        HttpSession session = request.getSession(true);
+        session.setAttribute("loginType", LoginType.KAKAO);
+        session.setAttribute("username", userInfo.getEmail());
+        log.info("✅ 로그인 타입 저장 완료 - loginType: KAKAO");
+        log.info("✅ id : {}" , userInfo.getEmail());
+
+        // 세션 값 로깅
+        log.debug("세션 저장 후 로그인 타입: {}", session.getAttribute("loginType"));
+        log.debug("세션 저장 후 사용자 이메일: {}", session.getAttribute("username"));
+
+        return "redirect:/admin/main";
+    }
+
+
+    // ✅ OAuth2 로그아웃
+    @PostMapping("/oauth2/kakao/logout")
+    @ResponseBody
+    public ResponseEntity<String> logout(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false); // 기존 세션만 가져오고 새로 생성 X
+
+        if (session != null) {
+            log.info("🆔 현재 세션 ID (무효화 전): {}", session.getId());
+            session.invalidate(); // ✅ 세션 무효화
+            log.info("✅ 세션 무효화 완료");
+
+            // 🚀 세션 재생성을 방지하기 위해 쿠키 삭제
+            Cookie cookie = new Cookie("JSESSIONID", null);
+            cookie.setMaxAge(0);
+            cookie.setPath("/");
+            response.addCookie(cookie);
+            log.info("🍪 JSESSIONID 쿠키 삭제 완료");
+        } else {
+            log.warn("⚠️ 세션이 존재하지 않음 (이미 로그아웃됨)");
+        }
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, "/login") // 로그인 페이지로 리다이렉트
+                .build();
+    }
+
+    @GetMapping("/check-session")
+    @ResponseBody
+    public ResponseEntity<String> checkSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            log.info("✅ 세션이 없음 (정상 로그아웃 상태)");
+            return ResponseEntity.ok("세션 없음 (정상 로그아웃)");
+        } else {
+            log.warn("⚠️ 세션이 아직 살아있음! ID: {}", session.getId());
+            return ResponseEntity.ok("세션이 아직 살아있음! ID: " + session.getId());
+        }
+    }
+
+    @GetMapping("/admin/main")
+    public String adminMain(HttpServletRequest request, Model model) {
+
+        // 세션에서 직접 loginType 확인
+        HttpSession session = request.getSession(false);
+        log.debug("session: {} ", session);
+
+        if (session != null) {
+            log.debug("세션에서 로그인 타입: {}", session.getAttribute("loginType"));
+            log.debug("세션에서 사용자 이메일: {}", session.getAttribute("username"));
+        }
+
+        // 세션에서 loginType을 가져와서 모델에 추가
+        if (session != null && session.getAttribute("loginType") != null) {
+            model.addAttribute("loginType", session.getAttribute("loginType"));
+        } else {
+            log.debug("loginType : {} ", session.getAttribute("loginType"));
+        }
+        return "admin/main";
+    }
+
 }
 
 
 /**
- * @RestController
- * @RequestMapping("/auth")
- * @RequiredArgsConstructor
- * @Slf4j
- * public class AuthController {
+ *  시큐리티를 사용하지 않고 로그인 하는 경우 로그인 페이지를 가져오는 건 kakaoCallback() 임
+ *  -> Spring Security가 활성화된 경우에는 자동으로 처리되지만, 현재 Security 없이 직접 처리해야 함.
  *
- *     private final AuthService authService;
- *
- *     @PostMapping("/session/login")
- *     public ResponseEntity<SessionResponse> sessionLogin(@RequestBody SessionRequest request, HttpServletRequest httpRequest) {
- *         return ResponseEntity.ok(authService.sessionLogin(httpRequest, request));
- *     }
- *
- *     @PostMapping("/session/logout")
- *     public ResponseEntity<Void> sessionLogout(HttpServletRequest request) {
- *         authService.sessionLogout(request);
- *         return ResponseEntity.ok().build();
- *     }
- *
- *     @PostMapping("/jwt/login")
- *     public ResponseEntity<JwtResponse> jwtLogin(@RequestBody JwtRequest jwtRequest) {
- *         return ResponseEntity.ok(authService.jwtLogin(jwtRequest));
- *     }
- *
- *     @PostMapping("/jwt/logout")
- *     public ResponseEntity<Void> jwtLogout(@RequestHeader("Authorization") String token) {
- *         authService.jwtLogout(token);
- *         return ResponseEntity.ok().build();
- *     }
- *
- *     @PostMapping("/oauth2/login")
- *     public ResponseEntity<OAuth2Response> oauth2Login(@RequestBody OAuth2Request oauth2Request) {
- *         return ResponseEntity.ok(authService.oauth2Login(oauth2Request));
- *     }
- *
- *     @PostMapping("/oauth2/logout")
- *     public ResponseEntity<Void> oauth2Logout(@RequestHeader("Authorization") String token) {
- *         authService.oauth2Logout(token);
- *         return ResponseEntity.ok().build();
- *     }
- * }
  */
