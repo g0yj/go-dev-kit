@@ -1,0 +1,51 @@
+✅ 1. AuthenticationManager의 동작 과정
+🔹 로그인 요청 시 동작 흐름
+1️⃣ SecurityLoginService에서 로그인 요청을 받음
+2️⃣ authenticationManager.authenticate()를 호출하여 사용자 인증을 진행
+3️⃣ DaoAuthenticationProvider가 CustomUserDetailsService를 사용하여 DB에서 사용자 정보 조회
+4️⃣ PasswordEncoder를 사용하여 비밀번호 검증
+5️⃣ 인증 성공 시 Authentication 객체를 반환하여 SecurityContextHolder에 저장
+6️⃣ 인증 완료 후 로그인 성공 응답 반환
+
+✅ 2. authenticationManager.authenticate()의 역할
+java
+복사
+편집
+Authentication authentication = authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+✔ 사용자의 **입력값(아이디 & 비밀번호)**을 UsernamePasswordAuthenticationToken으로 래핑
+✔ AuthenticationManager가 적절한 인증 제공자(DaoAuthenticationProvider)를 찾아 인증을 수행
+✔ 인증이 성공하면 인증된 Authentication 객체를 반환
+✔ 인증이 실패하면 BadCredentialsException 예외 발생
+
+✅ 3. SecurityConfig에서 AuthenticationManager 설정
+java
+복사
+편집
+@Bean
+public AuthenticationManager authenticationManager() {
+    DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+    authProvider.setUserDetailsService(userDetailsService); // ✅ 사용자 정보 조회 (DB)
+    authProvider.setPasswordEncoder(passwordEncoder()); // ✅ 비밀번호 암호화 적용
+    return new ProviderManager(List.of(authProvider));
+}
+✔ DaoAuthenticationProvider를 사용하여 사용자 인증 처리
+✔ CustomUserDetailsService를 사용하여 DB에서 사용자 정보를 조회
+✔ PasswordEncoder를 설정하여 비밀번호 검증을 수행
+
+✅ 4. 인증 성공/실패 시 동작
+상황	AuthenticationManager 동작	결과
+✅ 정상적인 사용자 로그인	authenticate()가 성공하여 Authentication 객체 반환	로그인 성공
+❌ 잘못된 비밀번호 입력	BadCredentialsException 발생	로그인 실패
+❌ 존재하지 않는 사용자	UsernameNotFoundException 발생	로그인 실패
+❌ 계정이 비활성화됨	DisabledException 발생	로그인 실패
+✅ 5. AuthenticationManager를 직접 호출하는 이유
+Spring Security에서는 일반적으로 자동으로 로그인 처리를 해주지만,
+우리는 커스텀 로그인 API를 만들었기 때문에 authenticationManager.authenticate()를 직접 호출해야 해!
+이렇게 하면 Spring Security의 보안 기능을 유지하면서도, 우리가 원하는 방식으로 로그인 처리를 할 수 있어. 🔥
+
+🎯 결론
+✔ AuthenticationManager는 사용자의 자격 증명을 검증하는 핵심 역할을 함
+✔ authenticate()를 호출하면 Spring Security의 인증 프로세스를 그대로 활용 가능
+✔ SecurityConfig에서 AuthenticationManager를 설정하여 사용자 정보를 검증하는 과정 구성
+✔ Spring Security 기반 로그인은 기본적인 보안 기능을 활용하면서도, API를 유연하게 커스텀 가능
