@@ -1,9 +1,9 @@
 package com.app.api.login.jwt.go;
 
-import com.app.api.login.UserType;
+
 import com.app.api.login.jwt.dto.JwtTokenRequest;
 import com.app.api.login.jwt.dto.JwtTokenResponse;
-import com.app.api.login.session.dto.SessionRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +34,7 @@ public class JwtTokenController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             log.warn("⚠️ 로그인 실패 - username: {}, 이유: {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, UserType.C));
+            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, null));
         }
     }
 
@@ -70,7 +70,7 @@ public class JwtTokenController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             log.warn("⚠️ 로그인 실패 - username: {}, 이유: {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, UserType.C));
+            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, null));
         }
     }
 
@@ -80,7 +80,7 @@ public class JwtTokenController {
     public ResponseEntity<String> refreshLogout(@RequestBody String username) {
         log.info("🔒 로그아웃 API 호출 - username: {}", username);
 
-        jwtTokenService.logout(username);
+        jwtTokenService.refreshLogout(username);
 
         log.info("✅ 로그아웃 완료 - username: {}", username);
         return ResponseEntity.ok("✅ 로그아웃 완료");
@@ -88,16 +88,16 @@ public class JwtTokenController {
 
     /** ✅ Spring Security 로그인 */
     @PostMapping("/security/login")
-    public ResponseEntity<?> securityLogin(@RequestBody SessionRequest request) {
+    public JwtTokenResponse securityLogin(@RequestBody JwtTokenRequest request) {
         log.info("🔐 Spring Security 로그인 API 호출 - username: {}", request.getUsername());
         return jwtTokenService.securityLogin(request);
     }
 
     /** ✅ Spring Security 로그아웃 */
     @PostMapping("/security/logout")
-    public ResponseEntity<?> securityLogout() {
+    public ResponseEntity<?> securityLogout(HttpServletRequest request) {
         log.info("🔓 Spring Security 로그아웃 API 호출");
-        return jwtTokenService.securityLogout();
+        return jwtTokenService.securityLogout(request);
     }
 
 }
