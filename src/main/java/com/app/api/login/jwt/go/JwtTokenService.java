@@ -3,10 +3,8 @@ package com.app.api.login.jwt.go;
 import com.app.api.login.UserType;
 import com.app.api.login.jwt.RefreshTokenEntity;
 import com.app.api.login.jwt.RefreshTokenRepository;
-import com.app.api.login.jwt.TokenBlacklistService;
 import com.app.api.login.jwt.dto.JwtTokenRequest;
 import com.app.api.login.jwt.dto.JwtTokenResponse;
-import com.app.api.login.jwt.go.JwtTokenProvider;
 import com.app.api.login.session.dto.SessionRequest;
 import com.app.api.test.entity.UserEntity;
 import com.app.api.test.repository.UserRepository;
@@ -22,8 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +27,7 @@ import java.util.Optional;
 public class JwtTokenService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
@@ -50,7 +47,12 @@ public class JwtTokenService {
             throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
 
-        String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getType());
+        // ✅ 사용자의 역할 조회 (ROLE_USER, ROLE_ADMIN 등)
+        String role = (user.getType() != null) ? user.getType().name() : "ROLE_C";
+
+        // ✅ JWT 생성 (role 포함)
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), role);
+
         log.info("✅ 로그인 성공 - '{}' 토큰 발급 완료", request.getUsername());
 
         return new JwtTokenResponse(user.getUsername(), accessToken, null, UserType.C);
@@ -69,7 +71,11 @@ public class JwtTokenService {
         UserEntity user = new UserEntity(request.getUsername(), encodedPassword, UserType.C , true);
         userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getType());
+        // ✅ 사용자의 역할 조회 (ROLE_USER, ROLE_ADMIN 등)
+        String role = (user.getType() != null) ? user.getType().name() : "ROLE_C";
+
+        // ✅ JWT 생성 (role 포함)
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), role);
         log.info("✅ 회원가입 완료 - '{}' 토큰 발급 완료", request.getUsername());
 
         return new JwtTokenResponse(user.getUsername(), accessToken, null, user.getType());
@@ -80,6 +86,48 @@ public class JwtTokenService {
         log.info("🔒 사용자 '{}' 로그아웃 처리", username);
         // 로그아웃 시 JWT 무효화할 방법이 필요 (예: 블랙리스트 DB 활용)
     }
+
+    /** ✅ 로그인 */
+    public JwtTokenResponse refreshLogin(JwtTokenRequest request) {
+        log.info("🔑 사용자 '{}' 로그인 시도", request.getUsername());
+
+        UserEntity user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        }
+        // ✅ 사용자의 역할 조회 (ROLE_USER, ROLE_ADMIN 등)
+        String role = (user.getType() != null) ? user.getType().name() : "ROLE_C";
+
+        // ✅ JWT 생성 (role 포함)
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), role);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
+        LocalDateTime expiresAt = jwtTokenProvider.getRefreshTokenExpiry(); // ✅ 만료 시간 설정
+
+        // ✅ 기존 리프레시 토큰 삭제 후 새로 저장
+        refreshTokenRepository.findByUsername(user.getUsername()).ifPresent(refreshTokenRepository::delete);
+
+        RefreshTokenEntity refreshTokenEntity = RefreshTokenEntity.builder()
+                .username(user.getUsername())
+                .refreshToken(refreshToken)
+                .issuedAt(LocalDateTime.now())
+                .expiresAt(expiresAt) // ✅ JwtTokenProvider에서 가져온 만료 시간 적용
+                .build();
+
+        refreshTokenRepository.save(refreshTokenEntity);
+
+        log.info("✅ 로그인 성공 - '{}' 액세스 & 리프레시 토큰 발급 완료", request.getUsername());
+        return new JwtTokenResponse(user.getUsername(), accessToken, refreshToken, user.getType());
+    }
+
+    /** ✅ 로그아웃 (리프레시 토큰 삭제) */
+    @Transactional
+    public void refreshLogout(String username) {
+        log.info("🔒 사용자 '{}' 로그아웃 처리 - 리프레시 토큰 삭제", username);
+        refreshTokenRepository.deleteByUsername(username);
+    }
+
 
     /** ✅ Spring Security 로그인 */
     public ResponseEntity<?> securityLogin(SessionRequest request) {

@@ -30,7 +30,7 @@ public class JwtSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource())) // ✅ 기존 설정 적용
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // ✅ 세션 미사용
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/jwt/login", "/jwt/register").permitAll() // ✅ 로그인, 회원가입 허용
+                        .requestMatchers("/jwt/**").permitAll() // ✅ 로그인, 회원가입 허용
                         .anyRequest().authenticated() // ✅ 나머지는 인증 필요
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // ✅ JWT 필터 적용

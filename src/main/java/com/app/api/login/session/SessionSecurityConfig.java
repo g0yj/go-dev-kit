@@ -19,13 +19,14 @@ import java.util.List;
 @EnableWebSecurity
 @RequiredArgsConstructor
 class SessionSecurityConfig {
-    private final CustomUserDetailsService userDetailsService; // ✅ 커스텀 UserDetailsService 사용
+/*
+    private final CustomUserDetailsService customUserDetailsService; // ✅ 커스텀 UserDetailsService 사용
     private final PasswordEncoder passwordEncoder;
 
     @Bean
     public AuthenticationManager authenticationManager() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService); // ✅ CustomUserDetailsService 적용
+        authProvider.setUserDetailsService(customUserDetailsService); // ✅ CustomUserDetailsService 적용
         authProvider.setPasswordEncoder(passwordEncoder);
         return new ProviderManager(List.of(authProvider));
     }
@@ -42,4 +43,5 @@ class SessionSecurityConfig {
         log.info("🔐 Spring Security 설정 완료");
         return http.build();
     }
+    */
 }

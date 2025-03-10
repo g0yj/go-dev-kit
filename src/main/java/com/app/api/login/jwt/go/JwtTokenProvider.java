@@ -1,19 +1,12 @@
 package com.app.api.login.jwt.go;
 
 import com.app.api.login.UserType;
-import com.app.api.login.jwt.TokenBlacklistService;
-import com.app.api.login.jwt.dto.JwtTokenResponse;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -32,16 +25,10 @@ public class JwtTokenProvider {
     private String secretKey;
 
     @Value("${spring.jwt.access-token-expiration}")
-    private long accessTokenExpiration;
+    private Duration accessTokenExpiration; // ✅ Duration 타입으로 변경
 
     @Value("${spring.jwt.refresh-token-expiration}")
-    private long refreshTokenExpiration;
-
-    private final TokenBlacklistService tokenBlacklistService;
-
-    public JwtTokenProvider(TokenBlacklistService tokenBlacklistService) {
-        this.tokenBlacklistService = tokenBlacklistService;
-    }
+    private Duration refreshTokenExpiration; // ✅ Duration 타입으로 변경
 
     /**
      * ✅ JWT 서명 키 생성
@@ -50,17 +37,31 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(Base64.getDecoder().decode(secretKey));
     }
 
-    /** ✅ JWT 토큰 생성 */
-    public String generateToken(String username, UserType type) {
-        String token = Jwts.builder()
+    /** ✅ Access Token 생성 */
+    /** ✅ Access Token 생성 */
+    public String generateAccessToken(String username, String role) {
+        return Jwts.builder()
                 .setSubject(username)
-                .claim("type", type.name())  // UserType 저장
+                .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration.toMillis())) // ✅ Duration 사용
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
-        log.info("✅ JWT 생성 완료 - 사용자: {}, 역할: {}", username, type);
-        return token;
+    }
+
+    /** ✅ Refresh Token 생성 */
+    public String generateRefreshToken(String username) {
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration.toMillis())) // ✅ Duration 사용
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /** ✅ Refresh Token 만료 시간 반환 */
+    public LocalDateTime getRefreshTokenExpiry() {
+        return LocalDateTime.now().plus(refreshTokenExpiration); // ✅ Duration을 LocalDateTime으로 변환
     }
 
     /** ✅ JWT 유효성 검사 */
@@ -77,6 +78,8 @@ public class JwtTokenProvider {
         return false;
     }
 
+
+
     /** ✅ JWT에서 사용자명 추출 */
     public String getUsernameFromToken(String token) {
         return Jwts.parser().setSigningKey(getSigningKey()).build()
@@ -89,4 +92,5 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token).getBody().get("type", String.class);
         return UserType.valueOf(typeStr);
     }
+
 }
