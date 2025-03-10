@@ -14,5 +14,5 @@ import lombok.experimental.FieldDefaults;
 public class JwtTokenRequest {
     String username;
     String password;
-    UserType type;
+
 }
