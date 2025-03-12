@@ -48,47 +48,52 @@
         }
     </style>
     <script>
-        document.getElementById("kakaoLogin").addEventListener("click", function() {
-    fetch("/oauth2/authorization/kakao", {
-        method: "GET",
-        headers: {
-            "Accept": "application/json", // JSON으로 받기
-            "Content-Type": "application/json"
+        function submitLogin() {
+            let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
+
+            fetch("/jwt/security/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ username: username, password: password })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("로그인 실패");
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("로그인 성공, 이동할 페이지:", data.redirectUrl);
+                localStorage.setItem("jwtToken", data.accessToken); // ✅ JWT 저장
+                window.location.href = data.redirectUrl; // ✅ 클라이언트에서 직접 이동
+            })
+            .catch(error => {
+                console.error("로그인 실패:", error);
+                alert("로그인 실패! 아이디 또는 비밀번호를 확인해주세요.");
+            });
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("카카오 로그인 성공:", data);
-        localStorage.setItem("accessToken", data.accessToken); // JWT 저장
-        localStorage.setItem("refreshToken", data.refreshToken);
-
-        // 로그인 후 특정 페이지로 이동
-        window.location.href = "/user/main";
-    })
-    .catch(error => {
-        console.error("카카오 로그인 오류:", error);
-    });
-});
-
     </script>
 
 </head>
 <body>
 <div class="login-container">
     <h3 style="font-size: 24px; font-weight: bold; text-align: center;">환영합니다👋</h3>
-    <form th:action="@{/login}" method="post">
+    <form th:action="@{/jwt/security/login}" method="post">
         <div class="mb-3">
             <input type="text" class="form-control" id="username" name="username" placeholder="아이디를 입력해주세요" required>
         </div>
         <div class="mb-3">
             <input type="password" class="form-control" id="password" name="password" placeholder="비밀번호를 입력해주세요" required>
         </div>
-        <button type="submit" class="btn btn-custom login-btn">로그인</button>
+        <button type="button" class="btn btn-custom login-btn" onclick="submitLogin()">로그인</button>
     </form>
 
     <div class="social-login">
-        <button class="btn-custom kakao-btn" onclick="location.href='/oauth2/authorization/kakao'">
-            카카오 로그인
+        <button class="btn-custom kakao-btn">
+            <a th:href="@{/oauth2/authorization/kakao}">카카오 로그인</a>
         </button>
 
 
