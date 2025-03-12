@@ -25,6 +25,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class SessionLoginService {
+/*
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserSessionRepository userSessionRepository;
@@ -105,5 +106,6 @@ public class SessionLoginService {
         log.info("✅ Spring Security 로그아웃 완료");
         return ResponseEntity.ok("✅ 로그아웃 완료");
     }
+*/
 
 }

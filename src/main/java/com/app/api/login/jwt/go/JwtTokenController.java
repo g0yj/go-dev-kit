@@ -7,14 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.HashSet;
-import java.util.Set;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -34,7 +27,7 @@ public class JwtTokenController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             log.warn("⚠️ 로그인 실패 - username: {}, 이유: {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, null));
+            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, null, null));
         }
     }
 
@@ -70,7 +63,7 @@ public class JwtTokenController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             log.warn("⚠️ 로그인 실패 - username: {}, 이유: {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, null));
+            return ResponseEntity.status(401).body(new JwtTokenResponse(null, null, null, null, null));
         }
     }
 
@@ -79,18 +72,18 @@ public class JwtTokenController {
     @PostMapping("/refresh/logout")
     public ResponseEntity<String> refreshLogout(@RequestBody String username) {
         log.info("🔒 로그아웃 API 호출 - username: {}", username);
-
         jwtTokenService.refreshLogout(username);
-
         log.info("✅ 로그아웃 완료 - username: {}", username);
         return ResponseEntity.ok("✅ 로그아웃 완료");
     }
 
     /** ✅ Spring Security 로그인 */
     @PostMapping("/security/login")
-    public JwtTokenResponse securityLogin(@RequestBody JwtTokenRequest request) {
-        log.info("🔐 Spring Security 로그인 API 호출 - username: {}", request.getUsername());
-        return jwtTokenService.securityLogin(request);
+    public ResponseEntity<JwtTokenResponse> securityLogin(@RequestBody JwtTokenRequest request) {
+        log.info("🔐 Spring Security JWT 로그인 API 호출 - username: {}", request.getUsername());
+        // ✅ 서비스에서 로그인 처리 및 Role 기반 URL 반환
+        JwtTokenResponse response = jwtTokenService.securityLogin(request);
+        return ResponseEntity.ok(response);
     }
 
     /** ✅ Spring Security 로그아웃 */
@@ -99,5 +92,4 @@ public class JwtTokenController {
         log.info("🔓 Spring Security 로그아웃 API 호출");
         return jwtTokenService.securityLogout(request);
     }
-
 }

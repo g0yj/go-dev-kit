@@ -23,7 +23,7 @@ public class RegistrationService {
     /**
      * 회원가입 처리 (DTO → Entity 변환 후 저장)
      */
-    public void registerUser(String username, String password, UserType type) {
+    public void registerUser(String username, String password, UserType type, boolean isApproved) {
         log.info("회원가입 요청 - username: {}, type: {}", username, type);
 
         // 중복된 username 검사
@@ -33,7 +33,7 @@ public class RegistrationService {
 
         // 비밀번호 암호화 후 저장
         String encodedPassword = passwordEncoder.encode(password);
-        UserEntity user = new UserEntity(username, encodedPassword, type);
+        UserEntity user = new UserEntity(username, encodedPassword, type , true);
         userRepository.save(user);
 
         log.info("회원가입 완료 - username: {}", username);

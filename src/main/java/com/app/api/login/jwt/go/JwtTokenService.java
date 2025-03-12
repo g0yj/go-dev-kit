@@ -70,7 +70,7 @@ public class JwtTokenService {
 
         log.info("✅ 로그인 성공 - '{}' 토큰 발급 완료", request.getUsername());
 
-        return new JwtTokenResponse(user.getUsername(), accessToken, null, user.getType());
+        return new JwtTokenResponse(user.getUsername(), accessToken, null, user.getType(), null);
     }
 
     /** ✅ 회원가입 */
@@ -93,7 +93,7 @@ public class JwtTokenService {
         String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getType());
         log.info("✅ 회원가입 완료 - '{}' 토큰 발급 완료", request.getUsername());
 
-        return new JwtTokenResponse(user.getUsername(), accessToken, null, user.getType());
+        return new JwtTokenResponse(user.getUsername(), accessToken, null, user.getType(), null);
     }
 
     /** ✅ 로그아웃 */
@@ -131,7 +131,7 @@ public class JwtTokenService {
         refreshTokenRepository.save(refreshTokenEntity);
 
         log.info("✅ 로그인 성공 - '{}' 액세스 & 리프레시 토큰 발급 완료", request.getUsername());
-        return new JwtTokenResponse(user.getUsername(), accessToken, refreshToken, user.getType());
+        return new JwtTokenResponse(user.getUsername(), accessToken, refreshToken, user.getType(), null);
     }
 
     /** ✅ 로그아웃 (리프레시 토큰 삭제) */
@@ -212,15 +212,28 @@ public class JwtTokenService {
                             log.debug("🔑 새 refreshToken 저장 완료");
                         }
                 );
+        // ✅ 7. Role에 따라 redirect URL 설정
+        String redirectUrl;
+        switch (user.getType().name()) {
+            case "A":
+                redirectUrl = "/admin/main";
+                break;
+            case "C":
+                redirectUrl = "/user/main";
+                break;
+            default:
+                redirectUrl = "/access-denied"; // 기본 접근 제한 페이지
+        }
 
-        log.info("✅ 사용자 '{}' 로그인 성공, 토큰 생성 완료", user.getUsername());
-        return new JwtTokenResponse(user.getUsername(), accessToken, refreshToken, user.getType());
+        log.info("✅ 사용자 '{}' 로그인 성공, 이동할 페이지: {}", user.getUsername(), redirectUrl);
+
+        return new JwtTokenResponse(user.getUsername(), accessToken, refreshToken, user.getType(), redirectUrl);
     }
 
 
 
-    /** ✅ Spring Security 로그아웃 */
-    /** ✅ Spring Security 로그아웃 */
+/** ✅ Spring Security 로그아웃 */
+
     @Transactional
     public ResponseEntity<?> securityLogout(HttpServletRequest request) {
         log.info("🔓 Spring Security 로그아웃 API 호출");

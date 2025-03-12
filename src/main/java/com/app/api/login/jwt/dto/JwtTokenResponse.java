@@ -14,4 +14,5 @@ public class JwtTokenResponse {
     String accessToken;
     String refreshToken;
     UserType type;
+    String redirectUrl;
 }

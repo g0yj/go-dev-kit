@@ -20,6 +20,7 @@ import java.util.Optional;
 @RequestMapping("/session")
 @RequiredArgsConstructor
 class SessionLoginController {
+/*
     private final SessionLoginService sessionLoginService;
 
     @PostMapping("/login")
@@ -63,5 +64,6 @@ class SessionLoginController {
     public ResponseEntity<?> securityLogout() {
         return sessionLoginService.securityLogout();
     }
+*/
 
 }

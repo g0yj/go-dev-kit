@@ -39,7 +39,7 @@ public class TestDataInitializer implements CommandLineRunner {
     private void createUserIfNotExists(String username, String rawPassword, UserType type) {
         if (userRepository.findByUsername(username).isEmpty()) {
             String encodedPassword = passwordEncoder.encode(rawPassword);
-            UserEntity user = new UserEntity(username, encodedPassword, type);
+            UserEntity user = new UserEntity(username, encodedPassword, type , true);
             userRepository.save(user);
             log.info("샘플 유저 추가 - username: {}, type: {}", username, type);
         } else {
