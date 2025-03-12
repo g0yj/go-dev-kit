@@ -59,7 +59,7 @@ public class EmailAttachment {
                     // ✅ 파일명 정리 + 확장자 추가
                     String finalFileName = sanitizedFileName + extension;
                     byte[] fileBytes = EmailUtils.extractFileBytes(part);
-                    String fileUrl = (fileBytes == null) ? fileService.getUrl(finalFileName, finalFileName) : null;
+                    String fileUrl = (fileBytes == null) ? fileService.getUrl(finalFileName) : null;
 
                     attachments.add(EmailAttachment.builder()
                             .fileName(finalFileName)

@@ -1,5 +1,6 @@
 package com.app.api.file;
 
+import com.app.api.file.dto.FileInfo;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -39,10 +40,10 @@ public class FileService {
     private String maxFileSizeStr;
 
 
-    public Map<String, String> upload(List<MultipartFile> files) {
-        Map<String, String> fileNames = new HashMap<>();
+    public Map<String, FileInfo> upload(List<MultipartFile> files) {
+        Map<String, FileInfo> fileInfoMap = new HashMap<>();
 
-        if (files == null) return fileNames;
+        if (files == null) return fileInfoMap;
 
         files.stream()
                 .filter(file -> file != null && !file.isEmpty())
@@ -51,15 +52,17 @@ public class FileService {
                         throw new IllegalArgumentException(
                                 String.format("❌ 파일 크기가 허용된 크기(%d MB)를 초과했습니다: %s", maxFileSizeStr, file.getOriginalFilename()));
                     }
-                    String fileName = upload(file);
+                    FileInfo fileInfo = upload(file);
 
-                    if (fileName != null) fileNames.put(file.getOriginalFilename(), fileName);
+                    if (fileInfo != null) {
+                        fileInfoMap.put(file.getOriginalFilename(), fileInfo);
+                    }
                 });
 
-        return fileNames;
+        return fileInfoMap;
     }
 
-    public String upload(MultipartFile file) {
+    public FileInfo upload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return null;
         }
@@ -70,7 +73,10 @@ public class FileService {
                     String.format("❌ 파일 크기가 허용된 크기(%d MB)를 초과: %s", maxFileSizeStr, file.getOriginalFilename()));
         }
 
+        String originalFileName = file.getOriginalFilename();
         String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        String filePath = uploadDir + "/" + fileName;  // ✅ 저장 경로
+        String fileUrl = getUrl(fileName); // ✅ 다운로드 URL
 
         File dir = new File(uploadDir);
         if(!dir.exists()) {
@@ -79,8 +85,14 @@ public class FileService {
             }
         }
         try {
-            file.transferTo(new File(uploadDir +fileName));
-            return fileName;
+            file.transferTo(new File(filePath));
+            return FileInfo.builder()
+                    .fileName(fileName)
+                    .originalFileName(file.getOriginalFilename())
+                    .filePath(filePath)
+                    .fileUrl(fileUrl)
+                    .build();
+
         } catch (IOException e){
             throw new IllegalArgumentException("❌ [업로드 실패]" , e);
         }
@@ -149,11 +161,8 @@ public class FileService {
     /**
      * 📌 파일 다운로드 URL 생성
      */
-    public String getUrl(String fileName, String originalFileName){
-        if(fileName == null || originalFileName == null){
-            return null;
-        }
-        return host + "/file/download" + fileName + "/" + originalFileName;
+    public String getUrl(String fileName) {
+        return host + "/file/download/" + fileName;
     }
 
     /**
