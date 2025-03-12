@@ -1,0 +1,12 @@
+📌 loadUser() 실행 흐름
+1️⃣ OAuth2 로그인 요청
+사용자가 /oauth2/authorization/kakao 같은 URL을 통해 OAuth2 로그인 버튼을 클릭하면,
+Spring Security가 OAuth2 인증을 처리하고, 인증 코드(code)를 받아서 OAuth2UserRequest를 생성함.
+2️⃣ loadUser() 메서드 호출
+Spring Security는 OAuth2UserRequest를 CustomOAuth2UserService.loadUser(userRequest)에 전달함.
+super.loadUser(userRequest)를 호출하면, OAuth2 제공자로부터 사용자 정보를 가져오는 기본 기능을 실행함.
+3️⃣ 사용자 정보 가공 & DB 저장
+OAuth2UserRequest에서 accessToken을 추출하여, 카카오/네이버/구글 API를 호출하여 추가 정보를 가져옴.
+이메일 기준으로 DB에서 기존 사용자 조회 & 필요하면 새로 가입시킴.
+4️⃣ 사용자 정보 반환
+최종적으로 OAuth2User 객체를 생성하여 Spring Security에 반환, 로그인 인증을 완료함.

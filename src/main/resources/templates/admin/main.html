@@ -98,46 +98,57 @@ function logout() {
         const loginType = metaTag.getAttribute('content'); // content에서 로그인 타입 가져오기
         console.log('loginType : ', loginType);
 
-        let logoutUrl = '/logout'; // 기본 로그아웃 URL (세션 기반 로그인)
+        let logoutUrl = '/jwt/security/logout'; // 기본 로그아웃 URL
+        let redirectUrl = '/'; // 기본 리다이렉트 URL
 
         // loginType에 따른 로그아웃 처리
         if (loginType === 'KAKAO') {
-            console.log("카카오진입");
-            logoutUrl = '/oauth2/kakao/logout'; // 카카오 로그아웃 URL로 변경
+            console.log("🔸 카카오 로그아웃 처리");
+            logoutUrl = '/oauth2/kakao/logout';
         } else if (loginType === 'NAVER') {
-            logoutUrl = '/oauth2/naver/logout'; // 네이버 로그아웃 URL로 변경
-        }
-
-        // CSRF 토큰을 가져올 수 있는지 확인
-        const csrfToken = document.querySelector('meta[name="_csrf"]');
-        if (csrfToken) {
-            console.log('CSRF 토큰 : ', csrfToken.getAttribute('content'));
+            console.log("🔹 네이버 로그아웃 처리");
+            logoutUrl = '/oauth2/naver/logout';
         } else {
-            console.error('CSRF 토큰을 찾을 수 없습니다.');
+            console.warn("⚠️ 지원되지 않는 loginType 감지, 기본 로그아웃 처리");
         }
 
-        // 로그아웃을 위한 POST 요청
+        // 🔑 LocalStorage에서 토큰 가져오기
+        const accessToken = localStorage.getItem("accessToken");
+        const refreshToken = localStorage.getItem("refreshToken"); // 필요하면 저장
+
+        if (!accessToken) {
+            console.warn("⚠️ 로그아웃 실패 - AccessToken이 없음");
+            alert("로그아웃 실패: 로그인 상태가 아닙니다.");
+            return;
+        }
+
+        // 로그아웃 요청
         fetch(logoutUrl, {
-            method: 'POST', // POST 메소드 사용
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : '' // CSRF 토큰이 없으면 빈 문자열로 처리
+                'Authorization': `Bearer ${accessToken}`, // ✅ JWT 포함
+                'Refresh-Token': refreshToken || '' // ✅ RefreshToken 포함 (필요한 경우)
             },
-            body: JSON.stringify({}) // 로그아웃에 필요한 데이터가 없다면 빈 객체 전달
+            body: JSON.stringify({})
         })
         .then(response => {
             if (response.ok) {
-                window.location.href = '/login'; // 로그인 페이지로 리다이렉트
+                console.log(`✅ 로그아웃 성공, 이동할 페이지: ${redirectUrl}`);
+                localStorage.removeItem("jwtToken"); // ✅ JWT 삭제
+                localStorage.removeItem("refreshToken"); // ✅ RefreshToken 삭제
+                window.location.href = redirectUrl; // "/" 페이지로 이동
             } else {
+                console.error('❌ 로그아웃 요청 실패');
                 alert('로그아웃에 실패했습니다.');
             }
         })
         .catch(error => {
-            console.error('로그아웃 오류:', error);
+            console.error('🚨 로그아웃 오류:', error);
             alert('로그아웃 중 오류가 발생했습니다.');
         });
     } else {
-        console.error('loginType meta 태그를 찾을 수 없습니다.');
+        console.error('⚠️ loginType meta 태그를 찾을 수 없습니다.');
     }
 }
     </script>
@@ -157,7 +168,7 @@ function logout() {
 <div class="sidebar">
     <a href="#" onclick="toggleSubmenu('home-submenu')">홈 ▾</a>
     <div id="home-submenu" class="submenu">
-        <a href="/admin/overview">개요</a>
+        <a href="/admin/notice">공지사항</a>
         <a href="/admin/reports">리포트</a>
         <a href="/admin/analytics">분석</a>
     </div>

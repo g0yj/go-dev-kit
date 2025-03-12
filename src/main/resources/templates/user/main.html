@@ -1,69 +1,189 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
+    <meta name="loginType" th:content="${loginType}">
     <title>Welcome</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* 전체 페이지 스타일 */
         body {
             background-color: #f8f9fa;
             font-family: 'Arial', sans-serif;
         }
+
         .container {
             max-width: 800px;
             background: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             margin: 50px auto;
             text-align: center;
         }
-        .btn-custom {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: none;
-        }
+
+        /* 헤더 스타일 */
         .header {
             background: black;
             color: white;
-            padding: 15px;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
         .header-title {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
         }
-        .header-buttons a {
-            color: white;
+
+        /* 버튼 공통 스타일 */
+        .btn-custom {
+            display: inline-block;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            transition: 0.3s ease-in-out;
             text-decoration: none;
-            margin-left: 15px;
-            padding: 5px 10px;
-            border: 1px solid white;
-            border-radius: 5px;
-            font-size: 14px;
         }
-        .header-buttons a:hover {
+
+        /* 기본 버튼 스타일 (검정) */
+        .btn-dark {
+            background-color: black;
+            color: white;
+        }
+
+        .btn-dark:hover {
+            background-color: #333;
+        }
+
+        /* 헤더 버튼 공통 스타일 */
+        .top-header-buttons a {
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: 2px solid white;
+            transition: 0.3s ease-in-out;
+        }
+
+        /* "내 정보" 버튼 - 파란색 */
+        .btn-profile {
             background: white;
             color: black;
         }
+
+        .btn-profile:hover {
+            background: blue;
+            color: white;
+        }
+
+        /* "로그아웃" 버튼 - 빨간색 */
+        .btn-logout {
+            background: white;
+            color: black;
+        }
+
+        .btn-logout:hover {
+            background: red;
+            color: white;
+        }
+
+        /* 기능 살펴보기 버튼 */
+        .btn-features {
+            background: black;
+            color: white;
+        }
+
+        .btn-features:hover {
+            background: #333;
+        }
+
     </style>
+
+
+    <script>
+        function logout() {
+    console.log('로그아웃 메서드 실행 ');
+
+    const metaTag = document.querySelector('meta[name="loginType"]');
+    console.log('metaTag : ', metaTag);
+
+    if (metaTag) {
+        const loginType = metaTag.getAttribute('content'); // content에서 로그인 타입 가져오기
+        console.log('loginType : ', loginType);
+
+        let logoutUrl = '/jwt/security/logout'; // 기본 로그아웃 URL
+        let redirectUrl = '/'; // 기본 리다이렉트 URL
+
+        // loginType에 따른 로그아웃 처리
+        if (loginType === 'KAKAO') {
+            console.log("🔸 카카오 로그아웃 처리");
+            logoutUrl = '/oauth2/kakao/logout';
+        } else if (loginType === 'NAVER') {
+            console.log("🔹 네이버 로그아웃 처리");
+            logoutUrl = '/oauth2/naver/logout';
+        } else {
+            console.warn("⚠️ 지원되지 않는 loginType 감지, 기본 로그아웃 처리");
+        }
+
+        // 🔑 LocalStorage에서 토큰 가져오기
+        const accessToken = localStorage.getItem("accessToken");
+        const refreshToken = localStorage.getItem("refreshToken"); // 필요하면 저장
+
+        if (!accessToken) {
+            console.warn("⚠️ 로그아웃 실패 - AccessToken이 없음");
+            alert("로그아웃 실패: 로그인 상태가 아닙니다.");
+            return;
+        }
+
+        // 로그아웃 요청
+        fetch(logoutUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`, // ✅ JWT 포함
+                'Refresh-Token': refreshToken || '' // ✅ RefreshToken 포함 (필요한 경우)
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log(`✅ 로그아웃 성공, 이동할 페이지: ${redirectUrl}`);
+                localStorage.removeItem("jwtToken"); // ✅ JWT 삭제
+                localStorage.removeItem("refreshToken"); // ✅ RefreshToken 삭제
+                window.location.href = redirectUrl; // "/" 페이지로 이동
+            } else {
+                console.error('❌ 로그아웃 요청 실패');
+                alert('로그아웃에 실패했습니다.');
+            }
+        })
+        .catch(error => {
+            console.error('🚨 로그아웃 오류:', error);
+            alert('로그아웃 중 오류가 발생했습니다.');
+        });
+    } else {
+        console.error('⚠️ loginType meta 태그를 찾을 수 없습니다.');
+    }
+}
+    </script>
 </head>
 <body>
 <div class="header">
     <div class="header-title">Welcome Page</div>
-    <div class="header-buttons">
-        <a href="/profile">내 정보</a>
-        <a href="/logout">로그아웃</a>
+    <div class="top-header-buttons">
+        <a href="/profile" class="btn-profile">내 정보</a>
+        <a href="javascript:void(0);" onclick="logout()" class="btn-logout">로그아웃</a>
     </div>
 </div>
+
 <div class="container">
     <h1>환영합니다! 🎉</h1>
     <p>저희 웹사이트에 오신 것을 환영합니다. 다양한 기능을 확인해보세요.</p>
-    <a href="/features" class="btn btn-dark btn-custom">기능 살펴보기</a>
+    <a href="/features" class="btn btn-custom btn-features">기능 살펴보기</a>
 </div>
 </body>
 </html>

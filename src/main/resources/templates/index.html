@@ -66,8 +66,8 @@
                 return response.json();
             })
             .then(data => {
-                console.log("로그인 성공, 이동할 페이지:", data.redirectUrl);
-                localStorage.setItem("jwtToken", data.accessToken); // ✅ JWT 저장
+                localStorage.setItem("accessToken", data.accessToken); // ✅ 변수명 수정: jwtToken → accessToken
+                localStorage.setItem("refreshToken", data.refreshToken); // ✅ RefreshToken 저장
                 window.location.href = data.redirectUrl; // ✅ 클라이언트에서 직접 이동
             })
             .catch(error => {
