@@ -15,7 +15,11 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @Configuration
 @EnableJpaAuditing
 @EnableTransactionManagement
-@EnableJpaRepositories(basePackages = "com.app.api.jap.repository")
+@EnableJpaRepositories(basePackages = {
+        "com.app.api.jpa.repository",
+        "com.app.api.test.repository",
+        "com.app.api.login.jwt"
+})
 public class JpaConfig {
 
   @PersistenceContext
