@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @ConfigurationPropertiesScan
 @EnableScheduling
-@EnableJpaRepositories
+//@EnableJpaRepositories
 public class GoApplication {
 
   public static void main(String[] args) {

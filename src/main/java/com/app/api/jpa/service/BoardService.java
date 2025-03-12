@@ -5,14 +5,22 @@ import com.app.api.file.dto.FileInfo;
 import com.app.api.jpa.controller.dto.CreateNoticeResponse;
 import com.app.api.jpa.entity.NoticeEntity;
 import com.app.api.jpa.entity.NoticeFileEntity;
+import com.app.api.jpa.entity.QNoticeEntity;
 import com.app.api.jpa.repository.NoticeFileRepository;
 import com.app.api.jpa.repository.NoticeRepository;
 import com.app.api.jpa.repository.UserRepository;
 import com.app.api.jpa.service.dto.CreateNotice;
+import com.app.api.jpa.service.dto.SearchListNotice;
+import com.app.api.jpa.service.dto.SearchNoticeResponse;
 import com.app.api.login.jwt.go.JwtTokenProvider;
+import com.app.api.utils.DateUtils;
 import com.app.api.utils.ObjectUtils;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -33,6 +41,48 @@ public class BoardService {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
+    @Transactional
+    public Page<SearchNoticeResponse> pageListNotice(SearchListNotice searchListNotice){
+        QNoticeEntity qNoticeEntity = QNoticeEntity.noticeEntity;
+
+        BooleanExpression where = Expressions.TRUE;
+
+        // 등록일 조건
+        if(searchListNotice.getDateFrom() != null && searchListNotice.getDateTo() != null){
+            where = where.and(
+                    qNoticeEntity.modifiedOn.goe(DateUtils.LocalDateToLocalDateTime(searchListNotice.getDateFrom()))
+                            .and(qNoticeEntity.modifiedOn.loe(DateUtils.LocalDateToLocalDateTime(searchListNotice.getDateTo())))
+            );
+        }
+
+        // 검색 조건
+        if(searchListNotice.hasSearch()){
+            switch (searchListNotice.getSearch()){
+                case "ALL":
+                    where = where.and(
+                            qNoticeEntity.title.contains(searchListNotice.getKeyword())
+                                    .or(qNoticeEntity.content.contains(searchListNotice.getKeyword()))
+                    );
+                    break;
+                case  "title":
+                    where = where.and(
+                            qNoticeEntity.title.contains(searchListNotice.getKeyword()));
+                    break;
+                case "content":
+                    where = where.and(
+                            qNoticeEntity.content.contains(searchListNotice.getKeyword()));
+                    break;
+                default:
+                    break;
+            }
+        }
+        Page<NoticeEntity> noticeEntities = noticeRepository.findAll(where, searchListNotice.toPageRequest());
+
+        return noticeEntities.map(noticeEntity -> {
+            SearchNoticeResponse searchNoticeResponse = boardServiceMapper.toSearchNoticeResponse(noticeEntity);
+            return searchNoticeResponse;
+        });
+    }
     @Transactional
     public CreateNoticeResponse createdNotice(CreateNotice createNotice) {
         log.debug("createNotice : {}", createNotice);
@@ -85,4 +135,5 @@ public class BoardService {
                 .id(noticeEntity.getId())
                 .build();
     }
+
 }
