@@ -3,9 +3,8 @@ package com.app.api.email;
 import com.app.api.email.dto.EmailAttachment;
 import com.app.api.email.dto.EmailResponse;
 import com.app.api.file.FileService;
-import com.app.api.test.controller.dto.email.SearchRequestEmail;
+import com.app.api.test.dto.email.SearchRequestEmail;
 import jakarta.mail.*;
-import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.search.SearchTerm;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +12,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -78,7 +76,7 @@ public class EmailReceiverService {
         List<Message> messagesList = new ArrayList<>();
 
         try {
-            store = emailConfig.connectToImap(emailConfig.getUsername());
+            store = emailConfig.connectToImap(emailConfig.getEmailProperties().getUsername());
             if (store == null) {
                 log.error("❌ [IMAP 연결 실패] Store가 null입니다.");
                 return Collections.emptyList();
@@ -93,7 +91,7 @@ public class EmailReceiverService {
             log.debug("📩 [INBOX 열기 성공]");
 
             Message[] messages;
-            if (emailConfig.getUsername().contains("@gmail")) {
+            if (emailConfig.getEmailProperties().getUsername().contains("@gmail")) {
                 messages = inbox.getMessages();
                 messages = emailUtils.gmailFilterMessages(messages, request).toArray(new Message[0]);
             } else {

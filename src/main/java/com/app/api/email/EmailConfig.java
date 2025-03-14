@@ -5,9 +5,13 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.Store;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Component;
 
 import java.util.Properties;
@@ -15,17 +19,34 @@ import java.util.Properties;
 @Slf4j
 @Getter
 @Setter
-@Component
+@Configuration
+@RequiredArgsConstructor
 public class EmailConfig {
 
-    @Value("${spring.mail.username}")
-    private String username;
+    private final EmailProperties emailProperties;
 
-    @Value("${spring.mail.password}")
-    private String password;
+    /**
+     * 📌 SMTP 설정을 포함한 JavaMailSender Bean 생성
+     */
+    @Bean
+    public JavaMailSender getJavaMailSender() {
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+        mailSender.setHost(emailProperties.getHost());
+        mailSender.setPort(emailProperties.getPort());
+        mailSender.setUsername(emailProperties.getUsername());
+        mailSender.setPassword(emailProperties.getPassword());
 
-    @Value("${spring.mail.imap.ssl.enable}")
-    private boolean imapSslEnable;
+        Properties props = mailSender.getJavaMailProperties();
+        props.put("mail.smtp.auth", emailProperties.getSmtp().isAuth());
+        props.put("mail.smtp.starttls.enable", emailProperties.getSmtp().getStarttls().isEnable());
+        props.put("mail.smtp.starttls.required", "true");
+        props.put("mail.transport.protocol", "smtp");
+        props.put("mail.debug", "true"); // ✅ 디버깅 활성화 (테스트 시 사용)
+
+        mailSender.setJavaMailProperties(props);
+        return mailSender;
+    }
+
 
     /**
      * 📌 IMAP 서버 연결 (다양한 메일 서비스 지원)
@@ -40,7 +61,7 @@ public class EmailConfig {
         Store store = session.getStore("imaps");
 
         try {
-            store.connect(imapHost, username, password);
+            store.connect(imapHost, username, emailProperties.getPassword());
             log.info("✅ [IMAP 연결 성공] 서버: {}", username);
             return store;
         } catch (MessagingException e) {
@@ -81,7 +102,7 @@ public class EmailConfig {
             }
         }
 
-        properties.setProperty("mail.imaps.ssl.enable", String.valueOf(imapSslEnable));
+        properties.setProperty("mail.imaps.ssl.enable", String.valueOf(emailProperties.getImap().getSsl().isEnable()));
         return properties;
     }
 

@@ -1,4 +1,4 @@
-package com.app.api.test.controller.dto.email;
+package com.app.api.test.dto.email;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
