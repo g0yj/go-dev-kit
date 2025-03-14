@@ -18,7 +18,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableJpaRepositories(basePackages = {
         "com.app.api.jpa.repository",
         "com.app.api.test.repository",
-        "com.app.api.login.jwt"
+        "com.app.api.login.jwt",
+        "com.app.api.batch"
 })
 public class JpaConfig {
 
