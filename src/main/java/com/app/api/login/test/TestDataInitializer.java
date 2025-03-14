@@ -1,8 +1,8 @@
 package com.app.api.login.test;
 
 import com.app.api.login.UserType;
-import com.app.api.test.entity.UserEntity;
-import com.app.api.test.repository.UserRepository;
+import com.app.api.jpa.entity.UserEntity;
+import com.app.api.jpa.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

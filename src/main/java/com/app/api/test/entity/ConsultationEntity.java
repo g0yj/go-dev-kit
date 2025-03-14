@@ -1,5 +1,6 @@
-package com.app.api.jpa.entity;
+package com.app.api.test.entity;
 
+import com.app.api.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

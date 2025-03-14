@@ -1,8 +1,10 @@
-package com.app.api.test.entity;
+package com.app.api.jpa.entity;
 
 import com.app.api.login.UserType;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Getter
@@ -28,6 +30,9 @@ public class UserEntity {
     @Column(nullable = false)
     private boolean isApproved; // ✅ 회원가입 승인 여부
 
+
+    @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PaymentEntity> payments;
 
     /**
      * 회원가입 시 사용할 생성자 (로그인/로그아웃 테스트를 위해 추가)
